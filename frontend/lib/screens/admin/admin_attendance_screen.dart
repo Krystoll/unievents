@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../models/event.dart';
 import '../../providers/events_provider.dart';
+import '../../widgets/confirm_action.dart';
 
 class AdminAttendanceScreen extends StatefulWidget {
   const AdminAttendanceScreen({super.key, required this.event});
@@ -21,6 +22,23 @@ class _AdminAttendanceScreenState extends State<AdminAttendanceScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<EventsProvider>().loadAttendance(widget.event.id);
     });
+  }
+
+  Future<void> _finalizeEvent() async {
+    final confirmed = await confirmAction(
+      context,
+      title: 'Завершить мероприятие?',
+      message:
+          '«${widget.event.title}» будет закрыто. Рейтинги надёжности обновятся для неявившихся.',
+      confirmLabel: 'Завершить',
+      isDestructive: true,
+    );
+    if (!confirmed || !context.mounted) return;
+
+    final msg = await context.read<EventsProvider>().finalizeEvent(widget.event.id);
+    if (!context.mounted || msg == null) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    await context.read<EventsProvider>().loadAttendance(widget.event.id);
   }
 
   @override
@@ -41,12 +59,7 @@ class _AdminAttendanceScreenState extends State<AdminAttendanceScreen> {
         LinearProgressIndicator(value: progress),
         const SizedBox(height: 16),
         FilledButton(
-          onPressed: () async {
-            final msg = await context.read<EventsProvider>().finalizeEvent(widget.event.id);
-            if (context.mounted && msg != null) {
-              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
-            }
-          },
+          onPressed: _finalizeEvent,
           child: const Text('Завершить мероприятие'),
         ),
         const SizedBox(height: 16),
