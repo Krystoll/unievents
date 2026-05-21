@@ -31,12 +31,15 @@ public class User implements UserDetails {
     @Column(nullable = false)
     private Role role;
 
+    @Builder.Default
     @Column(nullable = false)
     private Float reliabilityScore = 100.0f;
 
+    @Builder.Default
     @Column(nullable = false)
     private Integer attendedCount = 0;
 
+    @Builder.Default
     @Column(nullable = false)
     private Integer noShowCount = 0;
 

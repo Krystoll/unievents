@@ -28,3 +28,6 @@ replay_pid*
 *.iml
 *.iws
 *.ipr
+
+# Local config with secrets
+backend/src/main/resources/application.properties
