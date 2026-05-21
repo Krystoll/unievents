@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_spacing.dart';
 import '../../models/event.dart';
 import '../../providers/events_provider.dart';
+import '../../widgets/common/form_section.dart';
 
 class _FieldDraft {
   _FieldDraft({String name = '', this.required = true}) : controller = TextEditingController(text: name);
@@ -83,7 +86,14 @@ class _AdminCreateEventScreenState extends State<AdminCreateEventScreen> {
   }
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate() || _eventDate == null) return;
+    if (!_formKey.currentState!.validate() || _eventDate == null) {
+      if (_eventDate == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Выберите дату и время мероприятия')),
+        );
+      }
+      return;
+    }
     setState(() => _isSaving = true);
     final provider = context.read<EventsProvider>();
     final maxParticipants = int.parse(_maxParticipantsController.text.trim());
@@ -137,139 +147,242 @@ class _AdminCreateEventScreenState extends State<AdminCreateEventScreen> {
   @override
   Widget build(BuildContext context) {
     final dateText = _eventDate == null
-        ? 'Дата не выбрана'
-        : DateFormat('dd.MM.yyyy HH:mm').format(_eventDate!);
+        ? 'Не выбрано'
+        : DateFormat('dd.MM.yyyy, HH:mm').format(_eventDate!);
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 560),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                _isEdit ? 'Редактирование мероприятия' : 'Создание мероприятия',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _titleController,
-                decoration: const InputDecoration(labelText: 'Название'),
-                validator: (value) => value == null || value.trim().isEmpty ? 'Введите название' : null,
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _descriptionController,
-                maxLines: 3,
-                decoration: const InputDecoration(labelText: 'Описание'),
-                validator: (value) => value == null || value.trim().isEmpty ? 'Введите описание' : null,
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _locationController,
-                decoration: const InputDecoration(labelText: 'Место'),
-                validator: (value) => value == null || value.trim().isEmpty ? 'Введите место' : null,
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                initialValue: _type,
-                decoration: const InputDecoration(labelText: 'Тип'),
-                items: const [
-                  DropdownMenuItem(value: 'FREE', child: Text('FREE')),
-                  DropdownMenuItem(value: 'APPROVAL', child: Text('APPROVAL')),
-                ],
-                onChanged: (value) {
-                  if (value != null) {
-                    setState(() => _type = value);
-                  }
-                },
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _maxParticipantsController,
-                decoration: const InputDecoration(labelText: 'Максимум участников'),
-                keyboardType: TextInputType.number,
-                validator: (value) {
-                  final n = int.tryParse(value?.trim() ?? '');
-                  if (n == null || n <= 0) return 'Введите положительное число';
-                  return null;
-                },
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(child: Text('Дата: $dateText')),
-                  OutlinedButton(
-                    onPressed: _pickDateTime,
-                    child: const Text('Выбрать дату'),
-                  ),
-                ],
-              ),
-              if (_eventDate == null)
-                const Padding(
-                  padding: EdgeInsets.only(top: 4),
-                  child: Text('Выберите дату и время'),
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      child: Align(
+        alignment: Alignment.topLeft,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 640),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  _isEdit ? 'Редактирование' : 'Новое мероприятие',
+                  style: Theme.of(context).textTheme.titleLarge,
                 ),
-              if (_type == 'APPROVAL') ...[
-                const SizedBox(height: 16),
-                Text('Кастомные поля', style: Theme.of(context).textTheme.titleMedium),
-                const SizedBox(height: 8),
-                ..._fields.asMap().entries.map((entry) {
-                  final i = entry.key;
-                  final field = entry.value;
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: field.controller,
-                            decoration: const InputDecoration(
-                              labelText: 'Название поля',
-                              border: OutlineInputBorder(),
+                const SizedBox(height: AppSpacing.lg),
+                FormSection(
+                  title: 'Основная информация',
+                  subtitle: 'Название, описание и место проведения',
+                  icon: Icons.info_outline_rounded,
+                  child: Column(
+                    children: [
+                      TextFormField(
+                        controller: _titleController,
+                        decoration: const InputDecoration(
+                          labelText: 'Название',
+                          prefixIcon: Icon(Icons.title_rounded),
+                        ),
+                        validator: (value) =>
+                            value == null || value.trim().isEmpty ? 'Введите название' : null,
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                      TextFormField(
+                        controller: _descriptionController,
+                        maxLines: 3,
+                        decoration: const InputDecoration(
+                          labelText: 'Описание',
+                          prefixIcon: Icon(Icons.description_outlined),
+                          alignLabelWithHint: true,
+                        ),
+                        validator: (value) =>
+                            value == null || value.trim().isEmpty ? 'Введите описание' : null,
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                      TextFormField(
+                        controller: _locationController,
+                        decoration: const InputDecoration(
+                          labelText: 'Место',
+                          prefixIcon: Icon(Icons.place_outlined),
+                        ),
+                        validator: (value) =>
+                            value == null || value.trim().isEmpty ? 'Введите место' : null,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                FormSection(
+                  title: 'Параметры',
+                  subtitle: 'Тип записи, лимит и дата',
+                  icon: Icons.tune_rounded,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text('Тип записи', style: Theme.of(context).textTheme.bodyMedium),
+                      const SizedBox(height: AppSpacing.sm),
+                      SegmentedButton<String>(
+                        segments: const [
+                          ButtonSegment(
+                            value: 'FREE',
+                            label: Text('Свободная'),
+                            icon: Icon(Icons.how_to_reg_outlined, size: 18),
+                          ),
+                          ButtonSegment(
+                            value: 'APPROVAL',
+                            label: Text('По заявке'),
+                            icon: Icon(Icons.fact_check_outlined, size: 18),
+                          ),
+                        ],
+                        selected: {_type},
+                        onSelectionChanged: (set) {
+                          setState(() => _type = set.first);
+                        },
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                      TextFormField(
+                        controller: _maxParticipantsController,
+                        decoration: const InputDecoration(
+                          labelText: 'Максимум участников',
+                          prefixIcon: Icon(Icons.groups_outlined),
+                        ),
+                        keyboardType: TextInputType.number,
+                        validator: (value) {
+                          final n = int.tryParse(value?.trim() ?? '');
+                          if (n == null || n <= 0) return 'Введите положительное число';
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                      InkWell(
+                        onTap: _pickDateTime,
+                        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                        child: Container(
+                          padding: const EdgeInsets.all(AppSpacing.md),
+                          decoration: BoxDecoration(
+                            border: Border.all(
+                              color: _eventDate == null
+                                  ? AppColors.warning.withValues(alpha: 0.6)
+                                  : AppColors.outline,
                             ),
+                            borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                            color: AppColors.surfaceContainer,
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.calendar_month_rounded,
+                                color: _eventDate == null ? AppColors.warning : AppColors.primary,
+                              ),
+                              const SizedBox(width: AppSpacing.md),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Дата и время',
+                                      style: Theme.of(context).textTheme.bodyMedium,
+                                    ),
+                                    Text(
+                                      dateText,
+                                      style: Theme.of(context).textTheme.titleMedium,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const Icon(Icons.chevron_right, color: AppColors.textSecondary),
+                            ],
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        Checkbox(
-                          value: field.required,
-                          onChanged: (v) {
-                            setState(() => field.required = v ?? false);
-                          },
-                        ),
-                        const Text('Обязательное'),
-                        IconButton(
-                          onPressed: () {
-                            setState(() {
-                              _fields.removeAt(i).controller.dispose();
-                            });
-                          },
-                          icon: const Icon(Icons.delete_outline),
-                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (_type == 'APPROVAL') ...[
+                  const SizedBox(height: AppSpacing.md),
+                  FormSection(
+                    title: 'Поля заявки',
+                    subtitle: 'Дополнительные вопросы для студентов',
+                    icon: Icons.list_alt_rounded,
+                    trailing: IconButton.filledTonal(
+                      onPressed: () => setState(() => _fields.add(_FieldDraft())),
+                      icon: const Icon(Icons.add_rounded),
+                      tooltip: 'Добавить поле',
+                    ),
+                    child: Column(
+                      children: [
+                        if (_fields.isEmpty)
+                          Text(
+                            'Нет полей — нажмите + чтобы добавить',
+                            style: Theme.of(context).textTheme.bodyMedium,
+                          ),
+                        ..._fields.asMap().entries.map((entry) {
+                          final i = entry.key;
+                          final field = entry.value;
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                            child: Container(
+                              padding: const EdgeInsets.all(AppSpacing.md),
+                              decoration: BoxDecoration(
+                                color: AppColors.surface,
+                                borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                                border: Border.all(color: AppColors.outline),
+                              ),
+                              child: Column(
+                                children: [
+                                  TextField(
+                                    controller: field.controller,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Название поля',
+                                      isDense: true,
+                                    ),
+                                  ),
+                                  const SizedBox(height: AppSpacing.sm),
+                                  Row(
+                                    children: [
+                                      Checkbox(
+                                        value: field.required,
+                                        onChanged: (v) {
+                                          setState(() => field.required = v ?? false);
+                                        },
+                                      ),
+                                      const Text('Обязательное'),
+                                      const Spacer(),
+                                      IconButton(
+                                        onPressed: () {
+                                          setState(() {
+                                            _fields.removeAt(i).controller.dispose();
+                                          });
+                                        },
+                                        icon: const Icon(Icons.delete_outline_rounded),
+                                        color: AppColors.error,
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        }),
                       ],
                     ),
-                  );
-                }),
-                OutlinedButton.icon(
-                  onPressed: () => setState(() => _fields.add(_FieldDraft())),
-                  icon: const Icon(Icons.add),
-                  label: const Text('Добавить поле'),
+                  ),
+                ],
+                const SizedBox(height: AppSpacing.xl),
+                FilledButton(
+                  onPressed: _isSaving ? null : _submit,
+                  child: _isSaving
+                      ? const SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(_isEdit ? Icons.save_rounded : Icons.add_rounded),
+                            const SizedBox(width: 8),
+                            Text(_isEdit ? 'Сохранить изменения' : 'Создать мероприятие'),
+                          ],
+                        ),
                 ),
               ],
-              const SizedBox(height: 16),
-              FilledButton(
-                onPressed: _isSaving ? null : _submit,
-                child: _isSaving
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : Text(_isEdit ? 'Сохранить изменения' : 'Создать'),
-              ),
-            ],
+            ),
           ),
         ),
       ),

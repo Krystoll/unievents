@@ -3,10 +3,17 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/api/events_service.dart';
+import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_spacing.dart';
 import '../../models/event.dart';
 import '../../providers/events_provider.dart';
+import '../../widgets/common/empty_state.dart';
+import '../../widgets/common/error_state.dart';
+import '../../widgets/common/event_context_banner.dart';
+import '../../widgets/common/loading_view.dart';
+import '../../widgets/common/participant_tile.dart';
+import '../../widgets/common/styled_tabs.dart';
 import '../../widgets/confirm_action.dart';
-import '../../widgets/reliability_badge.dart';
 
 class AdminApplicationsScreen extends StatefulWidget {
   const AdminApplicationsScreen({super.key, required this.event});
@@ -30,23 +37,32 @@ class _AdminApplicationsScreenState extends State<AdminApplicationsScreen> {
   Widget build(BuildContext context) {
     final provider = context.watch<EventsProvider>();
     final participants = provider.participants;
+
     if (participants == null) {
-      return Center(
-        child: provider.error == null ? const CircularProgressIndicator() : Text(provider.error!),
-      );
+      if (provider.error != null) {
+        return ErrorState(
+          message: provider.error!,
+          onRetry: () => provider.loadParticipants(widget.event.id),
+        );
+      }
+      return const LoadingView(message: 'Загрузка участников...');
     }
 
     return DefaultTabController(
       length: 3,
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const TabBar(
+          EventContextBanner(event: widget.event),
+          const SizedBox(height: AppSpacing.md),
+          const StyledTabBar(
             tabs: [
               Tab(text: 'Записаны'),
               Tab(text: 'Очередь'),
               Tab(text: 'Заявки'),
             ],
           ),
+          const SizedBox(height: AppSpacing.md),
           Expanded(
             child: TabBarView(
               children: [
@@ -70,19 +86,28 @@ class _SimpleParticipantsList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (items.isEmpty) return const Center(child: Text('Список пуст'));
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
+    if (items.isEmpty) {
+      return EmptyState(
+        icon: showQueue ? Icons.queue_outlined : Icons.people_outline,
+        message: showQueue ? 'Очередь пуста' : 'Пока никто не записан',
+      );
+    }
+    return ListView.separated(
+      padding: const EdgeInsets.all(AppSpacing.lg),
       itemCount: items.length,
+      separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.md),
       itemBuilder: (context, index) {
         final p = items[index];
-        final dateText = DateFormat('dd.MM.yyyy HH:mm').format(p.registeredAt);
-        return Card(
-          child: ListTile(
-            title: Text('${p.name} (${p.email})'),
-            subtitle: Text('${showQueue ? 'Очередь #${p.queuePosition ?? '-'} • ' : ''}$dateText'),
-            trailing: ReliabilityBadge(score: p.reliabilityScore),
-          ),
+        final dateText = DateFormat('dd.MM.yyyy, HH:mm').format(p.registeredAt);
+        final subtitle = showQueue
+            ? 'Очередь #${p.queuePosition ?? '-'} • $dateText'
+            : 'Записан: $dateText';
+
+        return ParticipantTile(
+          name: p.name,
+          email: p.email,
+          subtitle: subtitle,
+          reliabilityScore: p.reliabilityScore,
         );
       },
     );
@@ -128,39 +153,64 @@ class _PendingList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (items.isEmpty) return const Center(child: Text('Заявок нет'));
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
+    if (items.isEmpty) {
+      return const EmptyState(
+        icon: Icons.pending_actions_outlined,
+        message: 'Нет заявок на рассмотрении',
+      );
+    }
+    return ListView.separated(
+      padding: const EdgeInsets.all(AppSpacing.lg),
       itemCount: items.length,
+      separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.md),
       itemBuilder: (context, index) {
         final p = items[index];
-        return Card(
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('${p.name} (${p.email})'),
-                const SizedBox(height: 8),
-                ReliabilityBadge(score: p.reliabilityScore),
-                const SizedBox(height: 8),
-                ...p.answers.map((a) => Text('${a.fieldName}: ${a.answer}')),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    FilledButton(
-                      onPressed: () => _approve(context, eventId, p),
-                      child: const Text('Одобрить'),
+        return ParticipantTile(
+          name: p.name,
+          email: p.email,
+          reliabilityScore: p.reliabilityScore,
+          actions: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (p.answers.isNotEmpty) ...[
+                Text('Ответы', style: Theme.of(context).textTheme.labelLarge),
+                const SizedBox(height: AppSpacing.sm),
+                ...p.answers.map(
+                  (a) => Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(Icons.chat_bubble_outline, size: 16, color: AppColors.textSecondary),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            '${a.fieldName}: ${a.answer}',
+                            style: Theme.of(context).textTheme.bodyMedium,
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 8),
-                    OutlinedButton(
-                      onPressed: () => _reject(context, eventId, p),
-                      child: const Text('Отклонить'),
-                    ),
-                  ],
+                  ),
                 ),
+                const SizedBox(height: AppSpacing.sm),
               ],
-            ),
+              Row(
+                children: [
+                  FilledButton.icon(
+                    onPressed: () => _approve(context, eventId, p),
+                    icon: const Icon(Icons.check_rounded, size: 18),
+                    label: const Text('Одобрить'),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  OutlinedButton.icon(
+                    onPressed: () => _reject(context, eventId, p),
+                    icon: const Icon(Icons.close_rounded, size: 18),
+                    label: const Text('Отклонить'),
+                  ),
+                ],
+              ),
+            ],
           ),
         );
       },

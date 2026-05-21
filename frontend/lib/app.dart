@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import 'core/providers/auth_provider.dart';
+import 'core/theme/app_theme.dart';
 import 'screens/admin/admin_shell.dart';
 import 'screens/admin/admin_wide_required_screen.dart';
 import 'screens/auth/login_screen.dart';
@@ -23,10 +24,8 @@ class UniEventsApp extends StatelessWidget {
         final router = _createRouter(authProvider);
         return MaterialApp.router(
           title: 'UniEvents',
-          theme: ThemeData(
-            colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
-            useMaterial3: true,
-          ),
+          theme: AppTheme.light,
+          debugShowCheckedModeBanner: false,
           routerConfig: router,
         );
       },

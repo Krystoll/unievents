@@ -3,6 +3,10 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/providers/auth_provider.dart';
+import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_spacing.dart';
+import '../../widgets/common/app_logo.dart';
+import '../../widgets/common/empty_state.dart';
 import '../../models/event.dart';
 import 'admin_applications_screen.dart';
 import 'admin_attendance_screen.dart';
@@ -70,10 +74,16 @@ class _AdminShellState extends State<AdminShell> {
             },
           ),
           _applicationsEvent == null
-              ? const Center(child: Text('Выберите мероприятие на вкладке «События»'))
+              ? const EmptyState(
+                  icon: Icons.people_outline,
+                  message: 'Выберите мероприятие на вкладке «События»',
+                )
               : AdminApplicationsScreen(event: _applicationsEvent!),
           _attendanceEvent == null
-              ? const Center(child: Text('Выберите мероприятие на вкладке «События»'))
+              ? const EmptyState(
+                  icon: Icons.bar_chart_outlined,
+                  message: 'Выберите мероприятие на вкладке «События»',
+                )
               : AdminAttendanceScreen(event: _attendanceEvent!),
         ];
 
@@ -82,59 +92,82 @@ class _AdminShellState extends State<AdminShell> {
         return Scaffold(
           body: Row(
             children: [
-              NavigationRail(
-                extended: isExtended,
-                selectedIndex: _selectedIndex,
-                onDestinationSelected: (index) {
-                  setState(() => _selectedIndex = index);
-                },
-                labelType: isExtended
-                    ? NavigationRailLabelType.none
-                    : NavigationRailLabelType.all,
-                destinations: const [
-                  NavigationRailDestination(
-                    icon: Icon(Icons.event),
-                    label: Text('События'),
+              Container(
+                decoration: const BoxDecoration(
+                  color: AppColors.surfaceContainer,
+                  border: Border(right: BorderSide(color: AppColors.outline)),
+                ),
+                child: NavigationRail(
+                  extended: isExtended,
+                  selectedIndex: _selectedIndex,
+                  onDestinationSelected: (index) {
+                    setState(() => _selectedIndex = index);
+                  },
+                  labelType: isExtended
+                      ? NavigationRailLabelType.none
+                      : NavigationRailLabelType.all,
+                  leading: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
+                    child: isExtended
+                        ? const AppLogo(showTitle: true, size: 40)
+                        : const AppLogo(showTitle: false, size: 36),
                   ),
-                  NavigationRailDestination(
-                    icon: Icon(Icons.add_box),
-                    label: Text('Создать'),
-                  ),
-                  NavigationRailDestination(
-                    icon: Icon(Icons.people),
-                    label: Text('Заявки'),
-                  ),
-                  NavigationRailDestination(
-                    icon: Icon(Icons.bar_chart),
-                    label: Text('Статистика'),
-                  ),
-                ],
-                trailing: Expanded(
-                  child: Align(
-                    alignment: Alignment.bottomCenter,
-                    child: IconButton(
-                      tooltip: 'Выйти',
-                      onPressed: () async {
-                        await context.read<AuthProvider>().logout();
-                        if (context.mounted) {
-                          context.go('/login');
-                        }
-                      },
-                      icon: const Icon(Icons.logout),
+                  destinations: const [
+                    NavigationRailDestination(
+                      icon: Icon(Icons.event_outlined),
+                      selectedIcon: Icon(Icons.event_rounded),
+                      label: Text('События'),
+                    ),
+                    NavigationRailDestination(
+                      icon: Icon(Icons.add_box_outlined),
+                      selectedIcon: Icon(Icons.add_box_rounded),
+                      label: Text('Создать'),
+                    ),
+                    NavigationRailDestination(
+                      icon: Icon(Icons.people_outline),
+                      selectedIcon: Icon(Icons.people_rounded),
+                      label: Text('Заявки'),
+                    ),
+                    NavigationRailDestination(
+                      icon: Icon(Icons.bar_chart_outlined),
+                      selectedIcon: Icon(Icons.bar_chart_rounded),
+                      label: Text('Статистика'),
+                    ),
+                  ],
+                  trailing: Expanded(
+                    child: Align(
+                      alignment: Alignment.bottomCenter,
+                      child: Padding(
+                        padding: const EdgeInsets.only(bottom: AppSpacing.lg),
+                        child: IconButton.filledTonal(
+                          tooltip: 'Выйти',
+                          onPressed: () async {
+                            await context.read<AuthProvider>().logout();
+                            if (context.mounted) {
+                              context.go('/login');
+                            }
+                          },
+                          icon: const Icon(Icons.logout_rounded),
+                        ),
+                      ),
                     ),
                   ),
                 ),
               ),
-              const VerticalDivider(width: 1),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.fromLTRB(24, 20, 24, 16),
+                      decoration: const BoxDecoration(
+                        color: AppColors.surfaceContainer,
+                        border: Border(bottom: BorderSide(color: AppColors.outline)),
+                      ),
                       child: Text(
                         _titles[_selectedIndex],
-                        style: Theme.of(context).textTheme.headlineSmall,
+                        style: Theme.of(context).textTheme.headlineMedium,
                       ),
                     ),
                     Expanded(child: pages[_selectedIndex]),
