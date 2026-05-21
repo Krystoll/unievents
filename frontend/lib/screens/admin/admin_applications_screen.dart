@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../core/api/events_service.dart';
 import '../../models/event.dart';
 import '../../providers/events_provider.dart';
+import '../../widgets/confirm_action.dart';
 import '../../widgets/reliability_badge.dart';
 
 class AdminApplicationsScreen extends StatefulWidget {
@@ -94,6 +95,37 @@ class _PendingList extends StatelessWidget {
   final String eventId;
   final List<ParticipantInfo> items;
 
+  Future<void> _approve(BuildContext context, String eventId, ParticipantInfo p) async {
+    final confirmed = await confirmAction(
+      context,
+      title: 'Одобрить заявку?',
+      message: 'Студент ${p.name} будет записан на мероприятие.',
+      confirmLabel: 'Одобрить',
+    );
+    if (!confirmed || !context.mounted) return;
+
+    final msg = await context.read<EventsProvider>().approve(eventId, p.registrationId);
+    if (!context.mounted || msg == null) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    await context.read<EventsProvider>().loadParticipants(eventId);
+  }
+
+  Future<void> _reject(BuildContext context, String eventId, ParticipantInfo p) async {
+    final confirmed = await confirmAction(
+      context,
+      title: 'Отклонить заявку?',
+      message: 'Заявка студента ${p.name} будет отклонена.',
+      confirmLabel: 'Отклонить',
+      isDestructive: true,
+    );
+    if (!confirmed || !context.mounted) return;
+
+    final msg = await context.read<EventsProvider>().reject(eventId, p.registrationId);
+    if (!context.mounted || msg == null) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    await context.read<EventsProvider>().loadParticipants(eventId);
+  }
+
   @override
   Widget build(BuildContext context) {
     if (items.isEmpty) return const Center(child: Text('Заявок нет'));
@@ -117,22 +149,12 @@ class _PendingList extends StatelessWidget {
                 Row(
                   children: [
                     FilledButton(
-                      onPressed: () async {
-                        final msg = await context.read<EventsProvider>().approve(eventId, p.registrationId);
-                        if (context.mounted && msg != null) {
-                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
-                        }
-                      },
+                      onPressed: () => _approve(context, eventId, p),
                       child: const Text('Одобрить'),
                     ),
                     const SizedBox(width: 8),
                     OutlinedButton(
-                      onPressed: () async {
-                        final msg = await context.read<EventsProvider>().reject(eventId, p.registrationId);
-                        if (context.mounted && msg != null) {
-                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
-                        }
-                      },
+                      onPressed: () => _reject(context, eventId, p),
                       child: const Text('Отклонить'),
                     ),
                   ],
