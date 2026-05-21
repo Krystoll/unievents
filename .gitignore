@@ -1,16 +1,8 @@
-# Compiled class file
+# Java
 *.class
-
-# Log file
 *.log
-
-# BlueJ files
 *.ctxt
-
-# Mobile Tools for Java (J2ME)
 .mtj.tmp/
-
-# Package Files #
 *.jar
 *.war
 *.nar
@@ -18,16 +10,44 @@
 *.zip
 *.tar.gz
 *.rar
-
-# virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
 hs_err_pid*
 replay_pid*
 
-# IntelliJ IDEA
-.idea
+# Maven
+backend/target/
+
+# IntelliJ
+.idea/
 *.iml
-*.iws
 *.ipr
+*.iws
 
 # Local config with secrets
 backend/src/main/resources/application.properties
+
+# Flutter / Dart
+**/.dart_tool/
+**/.flutter-plugins-dependencies
+**/.pub-cache/
+**/.pub/
+**/build/
+**/coverage/
+**/doc/api/
+**/.swiftpm/
+migrate_working_dir/
+
+# Android
+**/android/app/debug
+**/android/app/profile
+**/android/app/release
+**/ios/Flutter/.last_build_id
+
+# Misc
+.DS_Store
+*.swp
+.atom/
+.history
+.svn/
+
+app.*.symbols
+app.*.map.json
