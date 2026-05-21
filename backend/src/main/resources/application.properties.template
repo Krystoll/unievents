@@ -1,5 +1,6 @@
 # Сервер
 server.port=8080
+server.servlet.context-path=/api
 
 # PostgreSQL
 spring.datasource.url=jdbc:postgresql://localhost:5432/unievents
