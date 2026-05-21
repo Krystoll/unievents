@@ -1,6 +1,6 @@
-import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
+import '../core/api/api_json.dart';
 import '../core/api/events_service.dart';
 import '../models/attendance.dart';
 import '../models/event.dart';
@@ -259,16 +259,5 @@ class EventsProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  String _extractErrorMessage(Object error) {
-    if (error is DioException) {
-      final data = error.response?.data;
-      if (data is Map<String, dynamic>) {
-        final errorMessage = data['error'];
-        if (errorMessage is String && errorMessage.isNotEmpty) {
-          return errorMessage;
-        }
-      }
-    }
-    return 'Ошибка запроса. Проверьте сервер и данные.';
-  }
+  String _extractErrorMessage(Object error) => extractApiErrorMessage(error);
 }

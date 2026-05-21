@@ -1,3 +1,5 @@
+import '../core/api/api_json.dart';
+
 class AttendanceStats {
   final int totalRegistered;
   final int attended;
@@ -17,9 +19,9 @@ class AttendanceStats {
 
   factory AttendanceStats.fromJson(Map<String, dynamic> json) {
     return AttendanceStats(
-      totalRegistered: json['totalRegistered'] as int? ?? 0,
-      attended: json['attended'] as int? ?? 0,
-      noShow: json['noShow'] as int? ?? 0,
+      totalRegistered: (json['totalRegistered'] as num?)?.toInt() ?? 0,
+      attended: (json['attended'] as num?)?.toInt() ?? 0,
+      noShow: (json['noShow'] as num?)?.toInt() ?? 0,
       attendanceRate: (json['attendanceRate'] as num?)?.toDouble() ?? 0,
       attendees: (json['attendees'] as List<dynamic>? ?? [])
           .map((e) => Attendee.fromJson(e as Map<String, dynamic>))
@@ -44,9 +46,9 @@ class Attendee {
 
   factory Attendee.fromJson(Map<String, dynamic> json) {
     return Attendee(
-      userId: json['userId'] as String,
+      userId: json['userId']?.toString() ?? '',
       name: json['name'] as String,
-      attendedAt: DateTime.parse(json['attendedAt'] as String),
+      attendedAt: parseApiDateTime(json['attendedAt']),
     );
   }
 }
@@ -59,7 +61,7 @@ class NoShowUser {
 
   factory NoShowUser.fromJson(Map<String, dynamic> json) {
     return NoShowUser(
-      userId: json['userId'] as String,
+      userId: json['userId']?.toString() ?? '',
       name: json['name'] as String,
     );
   }

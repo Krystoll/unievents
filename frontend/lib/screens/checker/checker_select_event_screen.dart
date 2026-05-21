@@ -37,6 +37,27 @@ class _CheckerSelectEventScreenState extends State<CheckerSelectEventScreen> {
     if (provider.isLoadingEvents) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
+    if (provider.error != null && provider.events.isEmpty) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Выбор мероприятия')),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(provider.error!, textAlign: TextAlign.center),
+                const SizedBox(height: 12),
+                OutlinedButton(
+                  onPressed: () => provider.loadEvents(),
+                  child: const Text('Повторить'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
     final events = _todayAndUpcoming(provider.events);
     return Scaffold(
       appBar: AppBar(title: const Text('Выбор мероприятия')),

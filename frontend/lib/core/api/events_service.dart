@@ -7,6 +7,7 @@ import '../config/app_config.dart';
 import '../mock/mock_data.dart';
 import 'api_client.dart';
 import 'api_endpoints.dart';
+import 'api_json.dart';
 
 class EventRegistrationResponse {
   final String status;
@@ -21,9 +22,9 @@ class EventRegistrationResponse {
 
   factory EventRegistrationResponse.fromJson(Map<String, dynamic> json) {
     return EventRegistrationResponse(
-      status: json['status'] as String,
-      queuePosition: json['queuePosition'] as int?,
-      message: json['message'] as String,
+      status: json['status']?.toString() ?? '',
+      queuePosition: parseQueuePosition(json['queuePosition']),
+      message: (json['message'] as String?) ?? '',
     );
   }
 }
@@ -250,13 +251,13 @@ class ParticipantInfo {
 
   factory ParticipantInfo.fromJson(Map<String, dynamic> json) {
     return ParticipantInfo(
-      registrationId: (json['registrationId'] as String?) ?? '',
-      userId: json['userId'] as String,
+      registrationId: json['registrationId']?.toString() ?? '',
+      userId: json['userId']?.toString() ?? '',
       name: json['name'] as String,
       email: json['email'] as String,
       reliabilityScore: (json['reliabilityScore'] as num?)?.toDouble() ?? 0,
-      registeredAt: DateTime.parse(json['registeredAt'] as String),
-      queuePosition: json['queuePosition'] as int?,
+      registeredAt: parseApiDateTime(json['registeredAt']),
+      queuePosition: parseQueuePosition(json['queuePosition']),
       answers: (json['answers'] as List<dynamic>? ?? [])
           .map((e) => PendingAnswer.fromJson(e as Map<String, dynamic>))
           .toList(),

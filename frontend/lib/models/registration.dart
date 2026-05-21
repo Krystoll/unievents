@@ -1,3 +1,4 @@
+import '../core/api/api_json.dart';
 import 'event.dart';
 
 class Registration {
@@ -15,10 +16,10 @@ class Registration {
 
   factory Registration.fromJson(Map<String, dynamic> json) {
     return Registration(
-      registrationId: (json['registrationId'] as String?) ?? '',
+      registrationId: json['registrationId']?.toString() ?? '',
       event: Event.fromJson(json['event'] as Map<String, dynamic>),
-      status: json['status'] as String,
-      queuePosition: json['queuePosition'] as int?,
+      status: json['status']?.toString() ?? '',
+      queuePosition: parseQueuePosition(json['queuePosition']),
     );
   }
 }

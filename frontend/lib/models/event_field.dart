@@ -11,7 +11,7 @@ class EventField {
 
   factory EventField.fromJson(Map<String, dynamic> json) {
     return EventField(
-      id: (json['id'] as String?) ?? '',
+      id: json['id']?.toString() ?? '',
       fieldName: json['fieldName'] as String,
       required: json['required'] as bool? ?? false,
     );
