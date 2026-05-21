@@ -1,13 +1,6 @@
 # Java
 *.class
 *.log
-# Compiled class file
-*.class
-
-# Log file
-*.log
-
-# BlueJ files
 *.ctxt
 .mtj.tmp/
 *.jar
@@ -20,11 +13,17 @@
 hs_err_pid*
 replay_pid*
 
+# Maven
+backend/target/
+
 # IntelliJ
 .idea/
 *.iml
 *.ipr
 *.iws
+
+# Local config with secrets
+backend/src/main/resources/application.properties
 
 # Flutter / Dart
 **/.dart_tool/

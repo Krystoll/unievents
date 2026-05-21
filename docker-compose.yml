@@ -1,0 +1,36 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: unievents-postgres
+    environment:
+      POSTGRES_DB: unievents
+      POSTGRES_USER: unievents
+      POSTGRES_PASSWORD: unievents
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U unievents -d unievents"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: unievents-backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/unievents
+      SPRING_DATASOURCE_USERNAME: unievents
+      SPRING_DATASOURCE_PASSWORD: unievents
+      JWT_SECRET: unievents-dev-secret-key-change-in-production
+    ports:
+      - "8080:8080"
+
+volumes:
+  postgres_data:
