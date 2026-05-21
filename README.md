@@ -1,20 +1,26 @@
-<<<<<<< HEAD
-# flutter_app
+# UniEvents
 
-A new Flutter project.
+Монорепозиторий системы учёта мероприятий университета.
 
-## Getting Started
+## Структура
 
-This project is a starting point for a Flutter application.
+- `backend/` — Spring Boot API
+- `frontend/` — Flutter-приложение (STUDENT, ADMIN, CHECKER)
 
-A few resources to get you started if this is your first Flutter project:
+## Запуск backend
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+```bash
+cd backend
+# скопировать application.properties.template → application.properties и задать параметры
+mvn spring-boot:run
+```
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
-=======
-# unievents
->>>>>>> 2a842651092a451998138171a020e6ae7f398a5c
+## Запуск frontend
+
+```bash
+cd frontend
+flutter pub get
+flutter run
+```
+
+По умолчанию в `frontend/lib/core/config/app_config.dart` включены mock-данные (`useMockData = true`).
