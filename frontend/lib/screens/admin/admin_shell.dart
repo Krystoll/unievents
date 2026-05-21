@@ -77,16 +77,20 @@ class _AdminShellState extends State<AdminShell> {
               : AdminAttendanceScreen(event: _attendanceEvent!),
         ];
 
+        final isExtended = constraints.maxWidth > 1100;
+
         return Scaffold(
           body: Row(
             children: [
               NavigationRail(
-                extended: constraints.maxWidth > 1100,
+                extended: isExtended,
                 selectedIndex: _selectedIndex,
                 onDestinationSelected: (index) {
                   setState(() => _selectedIndex = index);
                 },
-                labelType: NavigationRailLabelType.all,
+                labelType: isExtended
+                    ? NavigationRailLabelType.none
+                    : NavigationRailLabelType.all,
                 destinations: const [
                   NavigationRailDestination(
                     icon: Icon(Icons.event),

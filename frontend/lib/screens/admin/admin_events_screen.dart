@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../models/event.dart';
 import '../../providers/events_provider.dart';
+import '../../widgets/confirm_action.dart';
 
 class AdminEventsScreen extends StatefulWidget {
   const AdminEventsScreen({
@@ -33,6 +34,15 @@ class _AdminEventsScreenState extends State<AdminEventsScreen> {
   }
 
   Future<void> _deleteEvent(Event event) async {
+    final confirmed = await confirmAction(
+      context,
+      title: 'Удалить мероприятие?',
+      message: '«${event.title}» будет удалено без возможности восстановления.',
+      confirmLabel: 'Удалить',
+      isDestructive: true,
+    );
+    if (!confirmed || !context.mounted) return;
+
     final messenger = ScaffoldMessenger.of(context);
     final provider = context.read<EventsProvider>();
     final ok = await provider.deleteEvent(event.id);
