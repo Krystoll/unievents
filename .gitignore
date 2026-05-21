@@ -1,6 +1,13 @@
 # Java
 *.class
 *.log
+# Compiled class file
+*.class
+
+# Log file
+*.log
+
+# BlueJ files
 *.ctxt
 .mtj.tmp/
 *.jar
