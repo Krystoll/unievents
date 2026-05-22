@@ -1,4 +1,4 @@
-package com.unievents.dto;
+package com.unievents.dto.response;
 
 import com.unievents.model.enums.Role;
 
