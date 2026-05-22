@@ -1,49 +1,32 @@
 package com.unievents.exception;
 
-import com.unievents.dto.ErrorResponse;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.authentication.BadCredentialsException;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
-import org.springframework.validation.FieldError;
-import org.springframework.web.bind.MethodArgumentNotValidException;
-import org.springframework.web.bind.annotation.ExceptionHandler;
-import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.http.*;
+import org.springframework.web.bind.annotation.*;
+import java.util.Map;
+import java.util.Arrays;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    @ExceptionHandler(ResourceNotFoundException.class)
-    public ResponseEntity<ErrorResponse> handleNotFound(ResourceNotFoundException ex) {
-        return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(new ErrorResponse(ex.getMessage()));
+    @ExceptionHandler(NotFoundException.class)
+    public ResponseEntity<?> notFound(NotFoundException e) {
+        return ResponseEntity.status(404).body(Map.of("error", e.getMessage()));
     }
 
     @ExceptionHandler(BadRequestException.class)
-    public ResponseEntity<ErrorResponse> handleBadRequest(BadRequestException ex) {
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(new ErrorResponse(ex.getMessage()));
-    }
-
-    @ExceptionHandler({BadCredentialsException.class, UsernameNotFoundException.class})
-    public ResponseEntity<ErrorResponse> handleBadCredentials(Exception ex) {
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body(new ErrorResponse("Неверный email или пароль"));
-    }
-
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ErrorResponse> handleValidation(MethodArgumentNotValidException ex) {
-        String message = ex.getBindingResult().getFieldErrors().stream()
-                .findFirst()
-                .map(FieldError::getDefaultMessage)
-                .orElse("Некорректные данные запроса");
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(new ErrorResponse(message));
+    public ResponseEntity<?> badRequest(BadRequestException e) {
+        return ResponseEntity.status(400).body(Map.of("error", e.getMessage()));
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ErrorResponse> handleGeneral(Exception ex) {
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(new ErrorResponse("Внутренняя ошибка сервера"));
+    public ResponseEntity<?> general(Exception e) {
+        // ВАЖНО: выводим ошибку в консоль!
+        System.err.println("=== ОШИБКА ===");
+        e.printStackTrace(System.err);
+
+        return ResponseEntity.status(500).body(Map.of(
+                "error", "Внутренняя ошибка сервера",
+                "details", e.getClass().getSimpleName() + ": " + e.getMessage()
+        ));
     }
 }
