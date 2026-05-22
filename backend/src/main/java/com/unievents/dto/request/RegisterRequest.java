@@ -1,4 +1,4 @@
-package com.unievents.dto;
+package com.unievents.dto.request;
 
 import com.unievents.model.enums.Role;
 import jakarta.validation.constraints.Email;
