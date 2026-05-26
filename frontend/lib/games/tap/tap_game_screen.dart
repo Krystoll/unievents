@@ -3,6 +3,10 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 
+import '../../core/api/games_service.dart';
+import '../../models/game_stats.dart';
+import '../game_scoring.dart';
+import '../game_session.dart';
 import '../widgets/games_layout.dart';
 import '../widgets/games_scaffold.dart';
 import 'tap_game_logic.dart';
@@ -17,6 +21,7 @@ class TapGameScreen extends StatefulWidget {
 
 class _TapGameScreenState extends State<TapGameScreen> {
   final _random = Random();
+  final _submitter = GameSessionSubmitter(GamesService());
   Timer? _timer;
   Timer? _clusterTimer;
 
@@ -29,6 +34,8 @@ class _TapGameScreenState extends State<TapGameScreen> {
   int _sessionId = 0;
   int _layoutGeneration = 0;
   bool _gameFinished = false;
+  bool _scoreSubmitted = false;
+  DateTime? _startedAt;
   TapInstruction _instruction = TapInstruction(
     shape: TargetShape.circle,
     color: targetPalette.first,
@@ -41,6 +48,8 @@ class _TapGameScreenState extends State<TapGameScreen> {
   double _boardHeight = 0;
   double _targetSizeScale = 1;
   List<GlyphDescriptor> _glyphs = [];
+
+  bool get _gameInProgress => _startedAt != null && !_gameFinished && !_scoreSubmitted;
 
   @override
   void initState() {
@@ -59,6 +68,7 @@ class _TapGameScreenState extends State<TapGameScreen> {
   void _startSession() {
     _timer?.cancel();
     _clusterTimer?.cancel();
+    _submitter.submitted = false;
     setState(() {
       _timeLeft = tapGameDurationSec;
       _score = 0;
@@ -67,6 +77,8 @@ class _TapGameScreenState extends State<TapGameScreen> {
       _bestReactionMs = null;
       _clusterId = 0;
       _gameFinished = false;
+      _scoreSubmitted = false;
+      _startedAt = DateTime.now();
       _instruction = generateInstruction(_random);
       _feedback = null;
       _glyphs = [];
@@ -79,6 +91,7 @@ class _TapGameScreenState extends State<TapGameScreen> {
           _gameFinished = true;
           _timer?.cancel();
           _clusterTimer?.cancel();
+          _submitResult();
         }
       });
     });
@@ -106,6 +119,23 @@ class _TapGameScreenState extends State<TapGameScreen> {
       _layoutGeneration++;
     });
     _spawnCluster();
+  }
+
+  Future<void> _submitResult() async {
+    final durationMs = GameScoring.tapDurationSec * 1000;
+    final saved = await _submitter.submit(
+      SubmitGameScorePayload(
+        gameType: GameType.tap,
+        score: _score,
+        durationMs: durationMs,
+        progress: _score,
+        completed: true,
+      ),
+    );
+    if (mounted) {
+      setState(() => _scoreSubmitted = true);
+      await showScoreSavedSnackBar(context, saved: saved);
+    }
   }
 
   void _spawnCluster() {
@@ -147,11 +177,11 @@ class _TapGameScreenState extends State<TapGameScreen> {
       switch (result) {
         case TapHitResult.correct:
           _combo++;
-          final multiplier = 1 + _combo ~/ 5;
-          _score += multiplier;
+          final points = GameScoring.tapPointsForReaction(reaction, _combo);
+          _score += points;
           _bestReactionMs =
               _bestReactionMs == null ? reaction : min(_bestReactionMs!, reaction);
-          _feedback = multiplier > 1 ? '+$multiplier комбо' : '+1';
+          _feedback = '+$points';
           _feedbackColor = theme.colorScheme.primary;
         case TapHitResult.wrong:
           _combo = 0;
@@ -182,6 +212,8 @@ class _TapGameScreenState extends State<TapGameScreen> {
 
     return GamesScaffold(
       title: 'Tap-the-Target',
+      gameInProgress: _gameInProgress,
+      scoreSubmitted: _scoreSubmitted,
       child: GamePageLayout(
         header: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,

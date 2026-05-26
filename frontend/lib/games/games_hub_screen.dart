@@ -86,6 +86,31 @@ class GamesHubScreen extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.xl),
           Text(
+            'Статистика и рейтинг',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => context.push('/student/games/stats'),
+                  icon: const Icon(Icons.bar_chart_rounded),
+                  label: const Text('Моя статистика'),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => context.push('/student/games/stats'),
+                  icon: const Icon(Icons.leaderboard_outlined),
+                  label: const Text('Топ игроков'),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.xl),
+          Text(
             'Выберите игру',
             style: Theme.of(context).textTheme.titleMedium,
           ),
