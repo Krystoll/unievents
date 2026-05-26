@@ -3,6 +3,10 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 
+import '../../core/api/games_service.dart';
+import '../../models/game_stats.dart';
+import '../game_scoring.dart';
+import '../game_session.dart';
 import '../widgets/games_layout.dart';
 import '../widgets/games_scaffold.dart';
 
@@ -39,6 +43,7 @@ class SimonGameScreen extends StatefulWidget {
 
 class _SimonGameScreenState extends State<SimonGameScreen> with SingleTickerProviderStateMixin {
   final _random = Random();
+  final _submitter = GameSessionSubmitter(GamesService());
 
   int _playbackId = 0;
   int _celebrationId = 0;
@@ -46,8 +51,14 @@ class _SimonGameScreenState extends State<SimonGameScreen> with SingleTickerProv
   List<int> _sequence = [];
   int _lives = _simonMaxLives;
   int _round = 1;
-  int _score = 0;
+  int _roundPoints = 0;
+  int _elapsedMs = 0;
+  int _activeElapsedMs = 0;
   int _playerIndex = 0;
+  bool _scoreSubmitted = false;
+  DateTime? _startedAt;
+  DateTime? _timerSegmentStart;
+  bool _timerPaused = true;
   int? _highlightPad;
   bool _isShowing = false;
   bool _showRoundSuccess = false;
@@ -56,8 +67,10 @@ class _SimonGameScreenState extends State<SimonGameScreen> with SingleTickerProv
   String _infoMessage = 'Слушайте последовательность';
   _SimonResult? _result;
   late final AnimationController _successPulse;
+  Timer? _elapsedTimer;
 
   int _sequenceLengthForRound(int round) => round + 1;
+  bool get _gameInProgress => _startedAt != null && _result == null && !_scoreSubmitted;
 
   @override
   void initState() {
@@ -71,17 +84,56 @@ class _SimonGameScreenState extends State<SimonGameScreen> with SingleTickerProv
 
   @override
   void dispose() {
+    _elapsedTimer?.cancel();
     _successPulse.dispose();
     super.dispose();
   }
 
+  void _syncElapsed() {
+    if (_timerPaused || _timerSegmentStart == null) {
+      _elapsedMs = _activeElapsedMs;
+      return;
+    }
+    _elapsedMs = _activeElapsedMs + DateTime.now().difference(_timerSegmentStart!).inMilliseconds;
+  }
+
+  void _pauseTimer() {
+    if (!_timerPaused && _timerSegmentStart != null) {
+      _activeElapsedMs += DateTime.now().difference(_timerSegmentStart!).inMilliseconds;
+    }
+    _timerSegmentStart = null;
+    _timerPaused = true;
+    _elapsedTimer?.cancel();
+    _syncElapsed();
+  }
+
+  void _resumeTimer() {
+    if (_result != null || !_timerPaused) return;
+    _timerPaused = false;
+    _timerSegmentStart = DateTime.now();
+    _startedAt ??= DateTime.now();
+    _elapsedTimer?.cancel();
+    _elapsedTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted || _result != null || _timerPaused) return;
+      setState(_syncElapsed);
+    });
+  }
+
   void _resetGame() {
+    _elapsedTimer?.cancel();
     _celebrationId++;
     _tapHighlightToken++;
+    _submitter.submitted = false;
     setState(() {
       _lives = _simonMaxLives;
       _round = 1;
-      _score = 0;
+      _roundPoints = 0;
+      _elapsedMs = 0;
+      _activeElapsedMs = 0;
+      _startedAt = DateTime.now();
+      _timerSegmentStart = null;
+      _timerPaused = true;
+      _scoreSubmitted = false;
       _result = null;
       _showRoundSuccess = false;
       _lastRoundPoints = 0;
@@ -93,6 +145,41 @@ class _SimonGameScreenState extends State<SimonGameScreen> with SingleTickerProv
       _infoMessage = 'Слушайте последовательность';
     });
     _playSequence();
+  }
+
+  Future<void> _finishSession({required int roundsCompleted, required bool allRoundsCompleted}) async {
+    _pauseTimer();
+    _syncElapsed();
+    final score = GameScoring.simonFinal(
+      roundsCompleted: roundsCompleted,
+      roundPoints: _roundPoints,
+      elapsedMs: _elapsedMs,
+      allRoundsCompleted: allRoundsCompleted,
+    );
+    setState(() {
+      _result = _SimonResult(
+        round: roundsCompleted,
+        score: score,
+        completed: allRoundsCompleted,
+      );
+      _showRoundSuccess = false;
+      _isShowing = false;
+      _countdownSeconds = 0;
+      _highlightPad = null;
+    });
+    final saved = await _submitter.submit(
+      SubmitGameScorePayload(
+        gameType: GameType.simon,
+        score: score,
+        durationMs: _elapsedMs,
+        progress: roundsCompleted,
+        completed: allRoundsCompleted,
+      ),
+    );
+    if (mounted) {
+      setState(() => _scoreSubmitted = true);
+      await showScoreSavedSnackBar(context, saved: saved);
+    }
   }
 
   void _flashPad(int padId) {
@@ -114,6 +201,9 @@ class _SimonGameScreenState extends State<SimonGameScreen> with SingleTickerProv
     final playbackId = ++_playbackId;
     if (!mounted || _result != null) return;
 
+    _pauseTimer();
+    if (mounted) setState(_syncElapsed);
+
     _clearPadHighlight();
 
     await Future<void>.delayed(const Duration(milliseconds: 500));
@@ -132,6 +222,7 @@ class _SimonGameScreenState extends State<SimonGameScreen> with SingleTickerProv
       _playerIndex = 0;
       _highlightPad = null;
     });
+    _resumeTimer();
   }
 
   Future<void> _celebrateRoundSuccess() async {
@@ -141,7 +232,7 @@ class _SimonGameScreenState extends State<SimonGameScreen> with SingleTickerProv
     _clearPadHighlight();
 
     setState(() {
-      _score += points;
+      _roundPoints += points;
       _lastRoundPoints = points;
       _showRoundSuccess = true;
       _isShowing = true;
@@ -163,13 +254,7 @@ class _SimonGameScreenState extends State<SimonGameScreen> with SingleTickerProv
     if (!mounted || celebrationId != _celebrationId || _result != null) return;
 
     if (_round >= _simonMaxRounds) {
-      setState(() {
-        _result = _SimonResult(round: _round, score: _score);
-        _showRoundSuccess = false;
-        _isShowing = false;
-        _countdownSeconds = 0;
-        _highlightPad = null;
-      });
+      await _finishSession(roundsCompleted: _round, allRoundsCompleted: true);
       return;
     }
 
@@ -216,9 +301,8 @@ class _SimonGameScreenState extends State<SimonGameScreen> with SingleTickerProv
       setState(() {
         _lives = 0;
         _infoMessage = 'Все жизни потрачены';
-        _result = _SimonResult(round: _round, score: _score);
-        _isShowing = false;
       });
+      _finishSession(roundsCompleted: max(0, _round - 1), allRoundsCompleted: false);
     }
   }
 
@@ -228,6 +312,8 @@ class _SimonGameScreenState extends State<SimonGameScreen> with SingleTickerProv
 
     return GamesScaffold(
       title: 'Запомни и повтори',
+      gameInProgress: _gameInProgress,
+      scoreSubmitted: _scoreSubmitted,
       child: GamePageLayout(
         header: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -238,7 +324,10 @@ class _SimonGameScreenState extends State<SimonGameScreen> with SingleTickerProv
                   ? Theme.of(context).textTheme.labelLarge
                   : Theme.of(context).textTheme.titleSmall,
             ),
-            Text('Счёт: $_score', style: Theme.of(context).textTheme.titleSmall),
+            Text(
+              'Очки раундов: $_roundPoints • Время: ${GameScoring.formatDuration(_elapsedMs)}',
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
             const SizedBox(height: 4),
             Row(
               children: [
@@ -390,10 +479,11 @@ class _RoundSuccessOverlay extends StatelessWidget {
 }
 
 class _SimonResult {
-  _SimonResult({required this.round, required this.score});
+  _SimonResult({required this.round, required this.score, required this.completed});
 
   final int round;
   final int score;
+  final bool completed;
 }
 
 class _SimonResultOverlay extends StatelessWidget {
@@ -415,7 +505,8 @@ class _SimonResultOverlay extends StatelessWidget {
             children: [
               Text('Результат', style: Theme.of(context).textTheme.titleLarge),
               Text('Раунд: ${result.round}'),
-              Text('Очки: ${result.score}'),
+              Text('Итоговый счёт: ${result.score}'),
+              Text(result.completed ? 'Все раунды пройдены' : 'Сессия завершена'),
               const SizedBox(height: 12),
               FilledButton(onPressed: onRestart, child: const Text('Играть снова')),
             ],

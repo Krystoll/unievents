@@ -4,7 +4,10 @@ import 'package:provider/provider.dart';
 
 import 'core/providers/auth_provider.dart';
 import 'core/theme/app_theme.dart';
+import 'models/game_stats.dart';
 import 'games/games_hub_screen.dart';
+import 'games/games_leaderboard_screen.dart';
+import 'games/games_stats_screen.dart';
 import 'games/memory/memory_game_screen.dart';
 import 'games/pattern/pattern_game_screen.dart';
 import 'games/simon/simon_game_screen.dart';
@@ -104,6 +107,21 @@ class UniEventsApp extends StatelessWidget {
         GoRoute(
           path: '/student/games/pattern',
           builder: (context, state) => const PatternGameScreen(),
+        ),
+        GoRoute(
+          path: '/student/games/stats',
+          builder: (context, state) => const GamesStatsScreen(),
+        ),
+        GoRoute(
+          path: '/student/games/leaderboard/:gameType',
+          builder: (context, state) {
+            final typeName = state.pathParameters['gameType']!;
+            final gameType = GameType.values.firstWhere(
+              (t) => t.name == typeName,
+              orElse: () => GameType.memory,
+            );
+            return GamesLeaderboardScreen(gameType: gameType);
+          },
         ),
         GoRoute(
           path: '/admin/events',

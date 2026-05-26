@@ -21,4 +21,8 @@ class ApiEndpoints {
       '/api/events/$eventId/registrations/$registrationId/reject';
   static String attendance(String eventId) => '/api/events/$eventId/attendance';
   static String finalize(String eventId) => '/api/events/$eventId/finalize';
+
+  static const String submitGameScore = '/api/games/scores';
+  static const String myGameStats = '/api/games/stats/me';
+  static String gameLeaderboard(String gameType) => '/api/games/leaderboard/$gameType';
 }

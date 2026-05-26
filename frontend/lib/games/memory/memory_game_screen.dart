@@ -3,11 +3,16 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 
+import '../../core/api/games_service.dart';
+import '../../models/game_stats.dart';
+import '../game_scoring.dart';
+import '../game_session.dart';
 import '../widgets/games_layout.dart';
 import '../widgets/games_scaffold.dart';
 import 'memory_game_logic.dart';
 
 const _levelCompleteDelay = Duration(seconds: 2);
+const _maxLives = 3;
 
 class MemoryGameScreen extends StatefulWidget {
   const MemoryGameScreen({super.key});
@@ -18,22 +23,34 @@ class MemoryGameScreen extends StatefulWidget {
 
 class _MemoryGameScreenState extends State<MemoryGameScreen> with SingleTickerProviderStateMixin {
   final _random = Random();
+  final _submitter = GameSessionSubmitter(GamesService());
 
   int _levelIndex = 0;
   int _sessionId = 0;
   int _levelToken = 0;
   int _celebrationToken = 0;
-  int _score = 0;
+  int _lives = _maxLives;
+  int _pairPoints = 0;
+  int _finalScore = 0;
+  int _elapsedMs = 0;
+  int _activeElapsedMs = 0;
   List<MemoryCard> _cards = [];
   List<int> _opened = [];
   bool _boardLocked = true;
   bool _isPreview = true;
-  bool _finished = false;
+  bool _sessionEnded = false;
   bool _showLevelComplete = false;
+  bool _allLevelsCompleted = false;
+  bool _scoreSubmitted = false;
   String? _infoMessage;
+  DateTime? _startedAt;
+  DateTime? _timerSegmentStart;
+  bool _timerPaused = true;
+  Timer? _elapsedTimer;
   late final AnimationController _levelPulse;
 
   MemoryLevel get _level => memoryLevels[_levelIndex];
+  bool get _gameInProgress => _startedAt != null && !_sessionEnded && !_scoreSubmitted;
 
   @override
   void initState() {
@@ -45,17 +62,48 @@ class _MemoryGameScreenState extends State<MemoryGameScreen> with SingleTickerPr
   @override
   void dispose() {
     _levelPulse.dispose();
+    _elapsedTimer?.cancel();
     super.dispose();
+  }
+
+  void _syncElapsed() {
+    if (_timerPaused || _timerSegmentStart == null) {
+      _elapsedMs = _activeElapsedMs;
+      return;
+    }
+    _elapsedMs = _activeElapsedMs + DateTime.now().difference(_timerSegmentStart!).inMilliseconds;
+  }
+
+  void _pauseTimer() {
+    if (!_timerPaused && _timerSegmentStart != null) {
+      _activeElapsedMs += DateTime.now().difference(_timerSegmentStart!).inMilliseconds;
+    }
+    _timerSegmentStart = null;
+    _timerPaused = true;
+    _elapsedTimer?.cancel();
+    _syncElapsed();
+  }
+
+  void _resumeTimer() {
+    if (_sessionEnded || !_timerPaused) return;
+    _timerPaused = false;
+    _timerSegmentStart = DateTime.now();
+    _startedAt ??= DateTime.now();
+    _elapsedTimer?.cancel();
+    _elapsedTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted || _sessionEnded || _timerPaused) return;
+      setState(_syncElapsed);
+    });
   }
 
   Future<void> _startLevel() async {
     final token = ++_levelToken;
+    _pauseTimer();
     setState(() {
       _cards = generateMemoryCards(_level, _random).map((c) => c.copyWith(isFaceUp: true)).toList();
       _opened = [];
       _boardLocked = true;
       _isPreview = true;
-      _finished = false;
       _showLevelComplete = false;
       _infoMessage = 'Запоминайте пары (${_level.previewMillis / 1000}s)';
     });
@@ -69,27 +117,85 @@ class _MemoryGameScreenState extends State<MemoryGameScreen> with SingleTickerPr
       _isPreview = false;
       _infoMessage = null;
     });
+    _resumeTimer();
   }
 
   void _restartRun() {
     _levelToken++;
     _celebrationToken++;
+    _elapsedTimer?.cancel();
+    _submitter.submitted = false;
     _levelPulse.stop();
     _levelPulse.reset();
     setState(() {
-      _score = 0;
+      _lives = _maxLives;
+      _pairPoints = 0;
+      _finalScore = 0;
+      _elapsedMs = 0;
+      _activeElapsedMs = 0;
       _levelIndex = 0;
       _sessionId++;
-      _finished = false;
+      _sessionEnded = false;
       _showLevelComplete = false;
+      _allLevelsCompleted = false;
+      _scoreSubmitted = false;
+      _startedAt = null;
+      _timerSegmentStart = null;
+      _timerPaused = true;
     });
     _startLevel();
+  }
+
+  Future<void> _loseLife(String reason) async {
+    final newLives = _lives - 1;
+    setState(() {
+      _lives = newLives;
+      _infoMessage = '$reason Жизней: $newLives';
+    });
+    if (newLives <= 0) {
+      await _finishSession(allLevelsCompleted: false);
+    }
+  }
+
+  Future<void> _finishSession({required bool allLevelsCompleted}) async {
+    if (_sessionEnded) return;
+    _pauseTimer();
+    _allLevelsCompleted = allLevelsCompleted;
+    final levelsDone = allLevelsCompleted ? memoryLevels.length : _levelIndex + 1;
+    final score = GameScoring.memoryFinal(
+      levelsCompleted: levelsDone,
+      pairPoints: _pairPoints,
+      elapsedMs: _elapsedMs,
+      allLevelsCompleted: allLevelsCompleted,
+    );
+
+    setState(() {
+      _sessionEnded = true;
+      _finalScore = score;
+      _boardLocked = true;
+      _showLevelComplete = false;
+    });
+
+    final saved = await _submitter.submit(
+      SubmitGameScorePayload(
+        gameType: GameType.memory,
+        score: score,
+        durationMs: _elapsedMs,
+        progress: levelsDone,
+        completed: allLevelsCompleted,
+      ),
+    );
+    if (mounted) {
+      setState(() => _scoreSubmitted = true);
+      await showScoreSavedSnackBar(context, saved: saved);
+    }
   }
 
   Future<void> _celebrateLevelComplete() async {
     final token = ++_celebrationToken;
     final isLastLevel = _levelIndex >= memoryLevels.length - 1;
 
+    _pauseTimer();
     setState(() {
       _showLevelComplete = true;
       _boardLocked = true;
@@ -104,11 +210,7 @@ class _MemoryGameScreenState extends State<MemoryGameScreen> with SingleTickerPr
     if (!mounted || token != _celebrationToken) return;
 
     if (isLastLevel) {
-      setState(() {
-        _finished = true;
-        _showLevelComplete = false;
-        _infoMessage = null;
-      });
+      await _finishSession(allLevelsCompleted: true);
       return;
     }
 
@@ -120,15 +222,14 @@ class _MemoryGameScreenState extends State<MemoryGameScreen> with SingleTickerPr
   }
 
   Future<void> _handleCardClick(int index) async {
-    if (_boardLocked || _finished || _isPreview || _showLevelComplete) return;
+    if (_boardLocked || _sessionEnded || _isPreview || _showLevelComplete) return;
     final card = _cards[index];
     if (card.isFaceUp || card.isMatched) return;
 
     if (card.isMine) {
       setState(() {
         _boardLocked = true;
-        _score = max(0, _score - 1);
-        _infoMessage = 'Мина! -1';
+        _pairPoints = max(0, _pairPoints - 2);
         _cards[index] = card.copyWith(isFaceUp: true);
       });
       await Future<void>.delayed(const Duration(milliseconds: 700));
@@ -136,8 +237,8 @@ class _MemoryGameScreenState extends State<MemoryGameScreen> with SingleTickerPr
       setState(() {
         _cards[index] = _cards[index].copyWith(isFaceUp: false);
         _boardLocked = false;
-        _infoMessage = null;
       });
+      await _loseLife('Мина!');
       return;
     }
 
@@ -158,7 +259,7 @@ class _MemoryGameScreenState extends State<MemoryGameScreen> with SingleTickerPr
       setState(() {
         _cards[first] = firstCard.copyWith(isMatched: true);
         _cards[second] = secondCard.copyWith(isMatched: true);
-        _score += 5;
+        _pairPoints += 8;
         _opened = [];
       });
 
@@ -178,6 +279,7 @@ class _MemoryGameScreenState extends State<MemoryGameScreen> with SingleTickerPr
         _opened = [];
         _boardLocked = false;
       });
+      await _loseLife('Ошибка!');
     }
   }
 
@@ -190,6 +292,8 @@ class _MemoryGameScreenState extends State<MemoryGameScreen> with SingleTickerPr
 
     return GamesScaffold(
       title: 'Мини-memory',
+      gameInProgress: _gameInProgress,
+      scoreSubmitted: _scoreSubmitted,
       child: GamePageLayout(
         header: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -200,7 +304,10 @@ class _MemoryGameScreenState extends State<MemoryGameScreen> with SingleTickerPr
                   ? Theme.of(context).textTheme.labelLarge
                   : Theme.of(context).textTheme.titleSmall,
             ),
-            Text('Пары: ${_level.pairCount} • Мины: ${_level.mines} • Счёт: $_score', style: textStyle),
+            Text(
+              'Жизни: $_lives • Пары: +$_pairPoints • Время: ${GameScoring.formatDuration(_elapsedMs)}',
+              style: textStyle,
+            ),
             if (_infoMessage != null)
               Text(
                 _infoMessage!,
@@ -212,7 +319,7 @@ class _MemoryGameScreenState extends State<MemoryGameScreen> with SingleTickerPr
           overlay: Stack(
             fit: StackFit.expand,
             children: [
-              if (_isPreview && !_finished && !_showLevelComplete)
+              if (_isPreview && !_sessionEnded && !_showLevelComplete)
                 Align(
                   alignment: Alignment.topCenter,
                   child: Container(
@@ -221,27 +328,13 @@ class _MemoryGameScreenState extends State<MemoryGameScreen> with SingleTickerPr
                     decoration: BoxDecoration(
                       color: Theme.of(context).colorScheme.primary,
                       borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.15),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
                     ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.visibility_rounded, color: Theme.of(context).colorScheme.onPrimary, size: 18),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Запоминайте пары',
-                          style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                                color: Theme.of(context).colorScheme.onPrimary,
-                                fontWeight: FontWeight.bold,
-                              ),
-                        ),
-                      ],
+                    child: Text(
+                      'Запоминайте пары',
+                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                            color: Theme.of(context).colorScheme.onPrimary,
+                            fontWeight: FontWeight.bold,
+                          ),
                     ),
                   ),
                 ),
@@ -251,7 +344,18 @@ class _MemoryGameScreenState extends State<MemoryGameScreen> with SingleTickerPr
                   isLastLevel: _levelIndex >= memoryLevels.length - 1,
                   pulse: _levelPulse,
                 ),
-              if (_finished) _VictoryOverlay(score: _score, onRestart: _restartRun),
+              if (_sessionEnded)
+                _SessionResultOverlay(
+                  title: _allLevelsCompleted ? 'Победа!' : 'Игра окончена',
+                  score: _finalScore,
+                  subtitle: gameResultSubtitle(
+                    score: _finalScore,
+                    durationMs: _elapsedMs,
+                    progress: _allLevelsCompleted ? memoryLevels.length : _levelIndex + 1,
+                    completed: _allLevelsCompleted,
+                  ),
+                  onRestart: _restartRun,
+                ),
             ],
           ),
           child: AdaptiveFixedGrid(
@@ -271,6 +375,43 @@ class _MemoryGameScreenState extends State<MemoryGameScreen> with SingleTickerPr
                 onTap: () => _handleCardClick(index),
               );
             },
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SessionResultOverlay extends StatelessWidget {
+  const _SessionResultOverlay({
+    required this.title,
+    required this.score,
+    required this.subtitle,
+    required this.onRestart,
+  });
+
+  final String title;
+  final int score;
+  final String subtitle;
+  final VoidCallback onRestart;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.92),
+      alignment: Alignment.center,
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(title, style: Theme.of(context).textTheme.titleLarge),
+              Text('Итоговый счёт: $score', style: Theme.of(context).textTheme.titleMedium),
+              Text(subtitle, textAlign: TextAlign.center),
+              const SizedBox(height: 12),
+              FilledButton(onPressed: onRestart, child: const Text('Играть снова')),
+            ],
           ),
         ),
       ),
@@ -311,14 +452,11 @@ class _LevelCompleteOverlay extends StatelessWidget {
               const Icon(Icons.emoji_events_rounded, color: Colors.white, size: 48),
               const SizedBox(height: 8),
               Text(
-                isLastLevel ? 'Победа!' : 'Уровень пройден!',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
+                isLastLevel ? 'Все уровни пройдены!' : 'Уровень пройден!',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Colors.white),
               ),
               Text(
-                isLastLevel ? 'Все пары найдены' : 'Уровень $levelNumber завершён',
+                isLastLevel ? 'Подсчитываем результат...' : 'Уровень $levelNumber завершён',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.white),
               ),
             ],
@@ -349,7 +487,7 @@ class _MemoryCardTile extends StatelessWidget {
     final faceUp = card.isFaceUp || card.isMatched;
     Color bg;
     Color borderColor = Colors.transparent;
-    double borderWidth = 0;
+    var borderWidth = 0.0;
 
     if (isPreviewPhase && faceUp) {
       bg = card.isMine ? const Color(0xFFFFCDD2) : const Color(0xFFE8F5E9);
@@ -368,7 +506,6 @@ class _MemoryCardTile extends StatelessWidget {
     return Material(
       color: bg,
       elevation: isPreviewPhase && faceUp ? 3 : 0,
-      shadowColor: Colors.black26,
       borderRadius: BorderRadius.circular(10),
       child: InkWell(
         onTap: enabled && !card.isMatched && !card.isFaceUp ? onTap : null,
@@ -380,43 +517,8 @@ class _MemoryCardTile extends StatelessWidget {
           ),
           child: Center(
             child: FittedBox(
-              child: Text(
-                faceUp ? card.sticker : '?',
-                style: TextStyle(
-                  fontSize: fontSize,
-                  fontWeight: isPreviewPhase && faceUp ? FontWeight.w600 : FontWeight.normal,
-                ),
-              ),
+              child: Text(faceUp ? card.sticker : '?', style: TextStyle(fontSize: fontSize)),
             ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _VictoryOverlay extends StatelessWidget {
-  const _VictoryOverlay({required this.score, required this.onRestart});
-
-  final int score;
-  final VoidCallback onRestart;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.92),
-      alignment: Alignment.center,
-      child: Card(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('Победа!', style: Theme.of(context).textTheme.titleLarge),
-              Text('Итоговый счёт: $score'),
-              const SizedBox(height: 12),
-              FilledButton(onPressed: onRestart, child: const Text('Играть снова')),
-            ],
           ),
         ),
       ),
