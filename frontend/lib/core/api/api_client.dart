@@ -1,14 +1,19 @@
 import 'package:dio/dio.dart';
 
+import '../config/app_config.dart';
 import '../storage/token_storage.dart';
 
 class ApiClient {
   ApiClient._internal() {
     dio = Dio(
       BaseOptions(
-        baseUrl: 'http://localhost:8080/api',
+        baseUrl: AppConfig.apiBaseUrl,
         connectTimeout: const Duration(seconds: 10),
         receiveTimeout: const Duration(seconds: 10),
+        headers: const {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
       ),
     );
 

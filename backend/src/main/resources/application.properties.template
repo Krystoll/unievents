@@ -17,6 +17,7 @@ spring.jpa.properties.hibernate.format_sql=true
 # JWT
 jwt.secret=${JWT_SECRET}
 jwt.expiration=86400000
+jwt.qr.expiration=120000
 
 # Jackson
 spring.jackson.serialization.write-dates-as-timestamps=false

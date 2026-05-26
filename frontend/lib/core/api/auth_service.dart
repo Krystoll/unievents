@@ -79,4 +79,38 @@ class AuthService {
     final response = await _dio.get(ApiEndpoints.me);
     return User.fromJson(response.data as Map<String, dynamic>);
   }
+
+  Future<QrTokenResponse> fetchQrToken() async {
+    if (AppConfig.useMockData) {
+      final user = MockData.studentUser;
+      final window = DateTime.now().millisecondsSinceEpoch ~/ 120000;
+      return QrTokenResponse(
+        qrToken: 'mock-qr-${user.id}-$window',
+        expiresInSeconds: 120,
+        expiresAt: DateTime.now().add(const Duration(seconds: 120)),
+      );
+    }
+    final response = await _dio.get(ApiEndpoints.qrToken);
+    return QrTokenResponse.fromJson(response.data as Map<String, dynamic>);
+  }
+}
+
+class QrTokenResponse {
+  final String qrToken;
+  final int expiresInSeconds;
+  final DateTime expiresAt;
+
+  const QrTokenResponse({
+    required this.qrToken,
+    required this.expiresInSeconds,
+    required this.expiresAt,
+  });
+
+  factory QrTokenResponse.fromJson(Map<String, dynamic> json) {
+    return QrTokenResponse(
+      qrToken: json['qrToken'] as String,
+      expiresInSeconds: (json['expiresInSeconds'] as num).toInt(),
+      expiresAt: DateTime.parse(json['expiresAt'] as String),
+    );
+  }
 }

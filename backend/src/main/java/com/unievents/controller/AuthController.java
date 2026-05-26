@@ -1,37 +1,89 @@
 package com.unievents.controller;
 
-import com.unievents.dto.AuthResponse;
-import com.unievents.dto.LoginRequest;
-import com.unievents.dto.RegisterRequest;
-import com.unievents.dto.UserResponse;
-import com.unievents.service.UserService;
-import jakarta.validation.Valid;
+import com.unievents.dto.request.*;
+import com.unievents.dto.response.AuthResponse;
+import com.unievents.dto.response.QrTokenResponse;
+import com.unievents.model.User;
+import com.unievents.model.enums.Role;
+import com.unievents.repository.UserRepository;
+import com.unievents.security.JwtUtil;
+import com.unievents.security.QrTokenUtil;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.authentication.*;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
+import java.util.Map;
 
 @RestController
-@RequestMapping("/auth")
+@RequestMapping("/api/auth")
 @RequiredArgsConstructor
 public class AuthController {
 
-    private final UserService userService;
+    private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final AuthenticationManager authManager;
+    private final JwtUtil jwtUtil;
+    private final QrTokenUtil qrTokenUtil;
 
     @PostMapping("/register")
-    @ResponseStatus(HttpStatus.CREATED)
-    public AuthResponse register(@Valid @RequestBody RegisterRequest request) {
-        return userService.register(request);
+    public ResponseEntity<?> register(@RequestBody RegisterRequest req) {
+        if (userRepository.findByEmail(req.email()).isPresent())
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "Email уже занят"));
+
+        User user = User.builder()
+                .name(req.name())
+                .email(req.email())
+                .password(passwordEncoder.encode(req.password()))
+                .role(req.role() != null ? req.role() : Role.STUDENT)
+                .reliabilityScore(100.0f)
+                .attendedCount(0)
+                .noShowCount(0)
+                .build();
+        userRepository.save(user);
+
+        return ResponseEntity.ok(buildAuthResponse(user));
     }
 
     @PostMapping("/login")
-    public AuthResponse login(@Valid @RequestBody LoginRequest request) {
-        return userService.login(request.email(), request.password());
+    public ResponseEntity<?> login(@RequestBody LoginRequest req) {
+        try {
+            authManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(req.email(), req.password()));
+        } catch (BadCredentialsException e) {
+            return ResponseEntity.status(401)
+                    .body(Map.of("error", "Неверный email или пароль"));
+        }
+        User user = userRepository.findByEmail(req.email()).orElseThrow();
+        return ResponseEntity.ok(buildAuthResponse(user));
     }
 
     @GetMapping("/me")
-    public UserResponse me(@AuthenticationPrincipal UserDetails userDetails) {
-        return userService.getCurrentUser(userDetails);
+    public ResponseEntity<?> me(@AuthenticationPrincipal User user) {
+        return ResponseEntity.ok(new AuthResponse.UserDto(
+                user.getId(), user.getName(), user.getEmail(),
+                user.getRole(), user.getReliabilityScore()));
+    }
+
+    @GetMapping("/me/qr")
+    @PreAuthorize("hasRole('STUDENT')")
+    public ResponseEntity<QrTokenResponse> qrToken(@AuthenticationPrincipal User user) {
+        long ttlSec = qrTokenUtil.getExpirationSeconds();
+        java.time.Instant expiresAt = java.time.Instant.now().plusSeconds(ttlSec);
+        return ResponseEntity.ok(new QrTokenResponse(
+                qrTokenUtil.generate(user.getId()),
+                ttlSec,
+                expiresAt
+        ));
+    }
+
+    private AuthResponse buildAuthResponse(User user) {
+        String token = jwtUtil.generateToken(user.getEmail());
+        return new AuthResponse(token, new AuthResponse.UserDto(
+                user.getId(), user.getName(), user.getEmail(),
+                user.getRole(), user.getReliabilityScore()));
     }
 }

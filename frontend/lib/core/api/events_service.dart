@@ -7,6 +7,7 @@ import '../config/app_config.dart';
 import '../mock/mock_data.dart';
 import 'api_client.dart';
 import 'api_endpoints.dart';
+import 'api_json.dart';
 
 class EventRegistrationResponse {
   final String status;
@@ -21,9 +22,9 @@ class EventRegistrationResponse {
 
   factory EventRegistrationResponse.fromJson(Map<String, dynamic> json) {
     return EventRegistrationResponse(
-      status: json['status'] as String,
-      queuePosition: json['queuePosition'] as int?,
-      message: json['message'] as String,
+      status: json['status']?.toString() ?? '',
+      queuePosition: parseQueuePosition(json['queuePosition']),
+      message: (json['message'] as String?) ?? '',
     );
   }
 }
@@ -213,16 +214,30 @@ class EventsService {
   }
 
   Future<ScanResponse> scan({
-    required String userId,
+    required String qrToken,
     required String eventId,
   }) async {
     if (AppConfig.useMockData) {
-      if (userId == MockData.studentUser.id) {
-        return MockData.scanAllowed(userId);
+      final studentId = MockData.studentUser.id;
+      final window = DateTime.now().millisecondsSinceEpoch ~/ 120000;
+      final currentToken = 'mock-qr-$studentId-$window';
+      if (qrToken == currentToken) {
+        return MockData.scanAllowed(studentId);
       }
-      return MockData.scanDenied(userId);
+      if (qrToken.startsWith('mock-qr-')) {
+        return ScanResponse(
+          allowed: false,
+          userName: '',
+          eventTitle: '',
+          message: 'QR-код устарел. Попросите студента обновить код в приложении',
+        );
+      }
+      return MockData.scanDenied(qrToken);
     }
-    final response = await _dio.post(ApiEndpoints.scan, data: {'userId': userId, 'eventId': eventId});
+    final response = await _dio.post(
+      ApiEndpoints.scan,
+      data: {'qrToken': qrToken, 'eventId': eventId},
+    );
     return ScanResponse.fromJson(response.data as Map<String, dynamic>);
   }
 }
@@ -250,13 +265,13 @@ class ParticipantInfo {
 
   factory ParticipantInfo.fromJson(Map<String, dynamic> json) {
     return ParticipantInfo(
-      registrationId: (json['registrationId'] as String?) ?? '',
-      userId: json['userId'] as String,
+      registrationId: json['registrationId']?.toString() ?? '',
+      userId: json['userId']?.toString() ?? '',
       name: json['name'] as String,
       email: json['email'] as String,
       reliabilityScore: (json['reliabilityScore'] as num?)?.toDouble() ?? 0,
-      registeredAt: DateTime.parse(json['registeredAt'] as String),
-      queuePosition: json['queuePosition'] as int?,
+      registeredAt: parseApiDateTime(json['registeredAt']),
+      queuePosition: parseQueuePosition(json['queuePosition']),
       answers: (json['answers'] as List<dynamic>? ?? [])
           .map((e) => PendingAnswer.fromJson(e as Map<String, dynamic>))
           .toList(),
