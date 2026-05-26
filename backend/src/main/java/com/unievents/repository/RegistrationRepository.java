@@ -17,6 +17,8 @@ public interface RegistrationRepository extends JpaRepository<Registration, UUID
     // Количество зарегистрированных (не считая очередь)
     long countByEventAndStatus(Event event, RegistrationStatus status);
 
+    boolean existsByEventAndStatusIn(Event event, Collection<RegistrationStatus> statuses);
+
     // Первый в очереди
     Optional<Registration> findFirstByEventAndStatusOrderByQueuePositionAsc(
             Event event, RegistrationStatus status);

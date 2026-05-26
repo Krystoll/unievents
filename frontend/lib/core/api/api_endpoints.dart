@@ -1,17 +1,18 @@
 class ApiEndpoints {
   // AuthController: @RequestMapping("/auth") + context-path /api
-  static const String register = '/auth/register';
-  static const String login = '/auth/login';
-  static const String me = '/auth/me';
+  static const String register = '/api/auth/register';
+  static const String login = '/api/auth/login';
+  static const String me = '/api/auth/me';
+  static const String qrToken = '/api/auth/me/qr';
 
   // Контроллеры с префиксом /api в маппинге + context-path /api
   static const String scan = '/api/scan';
   static const String myRegistrations = '/api/users/me/registrations';
 
   // EventController: @RequestMapping("/events") + context-path /api
-  static const String events = '/events';
+  static const String events = '/api/events';
 
-  static String eventById(String id) => '/events/$id';
+  static String eventById(String id) => '/api/events/$id';
   static String registerForEvent(String eventId) => '/api/events/$eventId/register';
   static String eventRegistrations(String eventId) => '/api/events/$eventId/registrations';
   static String approveRegistration(String eventId, String registrationId) =>

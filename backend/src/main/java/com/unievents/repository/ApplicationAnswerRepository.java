@@ -6,4 +6,6 @@ import java.util.*;
 
 public interface ApplicationAnswerRepository extends JpaRepository<ApplicationAnswer, UUID> {
     List<ApplicationAnswer> findByRegistration(Registration registration);
+
+    boolean existsByField_Event(Event event);
 }

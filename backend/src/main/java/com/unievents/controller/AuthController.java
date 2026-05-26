@@ -2,12 +2,15 @@ package com.unievents.controller;
 
 import com.unievents.dto.request.*;
 import com.unievents.dto.response.AuthResponse;
+import com.unievents.dto.response.QrTokenResponse;
 import com.unievents.model.User;
 import com.unievents.model.enums.Role;
 import com.unievents.repository.UserRepository;
 import com.unievents.security.JwtUtil;
+import com.unievents.security.QrTokenUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.authentication.*;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -23,6 +26,7 @@ public class AuthController {
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authManager;
     private final JwtUtil jwtUtil;
+    private final QrTokenUtil qrTokenUtil;
 
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody RegisterRequest req) {
@@ -62,6 +66,18 @@ public class AuthController {
         return ResponseEntity.ok(new AuthResponse.UserDto(
                 user.getId(), user.getName(), user.getEmail(),
                 user.getRole(), user.getReliabilityScore()));
+    }
+
+    @GetMapping("/me/qr")
+    @PreAuthorize("hasRole('STUDENT')")
+    public ResponseEntity<QrTokenResponse> qrToken(@AuthenticationPrincipal User user) {
+        long ttlSec = qrTokenUtil.getExpirationSeconds();
+        java.time.Instant expiresAt = java.time.Instant.now().plusSeconds(ttlSec);
+        return ResponseEntity.ok(new QrTokenResponse(
+                qrTokenUtil.generate(user.getId()),
+                ttlSec,
+                expiresAt
+        ));
     }
 
     private AuthResponse buildAuthResponse(User user) {

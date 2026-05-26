@@ -2,6 +2,7 @@ package com.unievents.service;
 
 import com.unievents.dto.request.EventRequest;
 import com.unievents.dto.response.EventResponse;
+import com.unievents.exception.BadRequestException;
 import com.unievents.exception.NotFoundException;
 import com.unievents.model.*;
 import com.unievents.model.enums.RegistrationStatus;
@@ -20,6 +21,7 @@ public class EventService {
     private final EventRepository eventRepository;
     private final EventFieldRepository fieldRepository;
     private final RegistrationRepository registrationRepository;
+    private final ApplicationAnswerRepository answerRepository;
 
     public List<EventResponse> getAll() {
         return eventRepository.findAll().stream()
@@ -68,18 +70,25 @@ public class EventService {
         event.setMaxParticipants(req.maxParticipants());
         event.setType(req.type());
 
-        // Обновить поля: удалить старые, добавить новые
-        fieldRepository.deleteAll(fieldRepository.findByEvent(event));
-        if (req.fields() != null) {
-            for (var f : req.fields()) {
-                EventField field = EventField.builder()
-                        .event(event)
-                        .fieldName(f.fieldName())
-                        .required(Boolean.TRUE.equals(f.required()))
-                        .build();
-                fieldRepository.save(field);
+        if (fieldsChanged(event, req.fields())) {
+            if (hasSubmittedApplications(event)) {
+                throw new BadRequestException(
+                        "Нельзя изменить поля мероприятия: есть поданные заявки");
+            }
+
+            fieldRepository.deleteAll(fieldRepository.findByEvent(event));
+            if (req.fields() != null) {
+                for (var f : req.fields()) {
+                    EventField field = EventField.builder()
+                            .event(event)
+                            .fieldName(f.fieldName())
+                            .required(Boolean.TRUE.equals(f.required()))
+                            .build();
+                    fieldRepository.save(field);
+                }
             }
         }
+
         return toResponseWithFields(eventRepository.save(event));
     }
 
@@ -93,6 +102,42 @@ public class EventService {
     public Event findById(UUID id) {
         return eventRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Мероприятие не найдено"));
+    }
+
+    private boolean fieldsChanged(Event event, List<EventRequest.FieldRequest> requested) {
+        List<EventField> current = fieldRepository.findByEvent(event);
+        List<EventRequest.FieldRequest> reqFields = requested != null ? requested : List.of();
+
+        if (current.size() != reqFields.size()) {
+            return true;
+        }
+
+        List<String> currentKeys = current.stream()
+                .map(f -> f.getFieldName() + "|" + f.getRequired())
+                .sorted()
+                .toList();
+        List<String> reqKeys = reqFields.stream()
+                .map(f -> f.fieldName() + "|" + Boolean.TRUE.equals(f.required()))
+                .sorted()
+                .toList();
+        return !currentKeys.equals(reqKeys);
+    }
+
+    private boolean hasSubmittedApplications(Event event) {
+        if (answerRepository.existsByField_Event(event)) {
+            return true;
+        }
+        return registrationRepository.existsByEventAndStatusIn(
+                event,
+                List.of(
+                        RegistrationStatus.PENDING,
+                        RegistrationStatus.REGISTERED,
+                        RegistrationStatus.WAITLISTED,
+                        RegistrationStatus.ATTENDED,
+                        RegistrationStatus.REJECTED,
+                        RegistrationStatus.NO_SHOW
+                )
+        );
     }
 
     private EventResponse toResponse(Event e) {

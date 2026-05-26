@@ -12,7 +12,7 @@ class AppConfig {
   /// context-path бэка: `/api` → базовый URL `http://host:8080/api`.
   static String get apiBaseUrl {
     final host = _resolveHost();
-    return 'http://$host:8080/api';
+    return 'http://$host:8080';
   }
 
   static String _resolveHost() {

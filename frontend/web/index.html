@@ -31,6 +31,14 @@
 
   <title>flutter_app</title>
   <link rel="manifest" href="manifest.json">
+  <style>
+    /* mobile_scanner на web по умолчанию обрезает превью (object-fit: cover) */
+    flt-platform-view video,
+    video {
+      object-fit: contain !important;
+      background: #000;
+    }
+  </style>
 </head>
 <body>
   <script src="flutter_bootstrap.js" async></script>

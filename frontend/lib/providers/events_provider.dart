@@ -231,11 +231,11 @@ class EventsProvider extends ChangeNotifier {
   }
 
   Future<ScanResponse?> scan({
-    required String userId,
+    required String qrToken,
     required String eventId,
   }) async {
     try {
-      _scanResult = await _service.scan(userId: userId, eventId: eventId);
+      _scanResult = await _service.scan(qrToken: qrToken, eventId: eventId);
       notifyListeners();
       return _scanResult;
     } catch (e) {

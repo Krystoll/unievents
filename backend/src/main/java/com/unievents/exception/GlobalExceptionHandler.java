@@ -1,5 +1,6 @@
 package com.unievents.exception;
 
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
 import java.util.Map;
@@ -16,6 +17,14 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(BadRequestException.class)
     public ResponseEntity<?> badRequest(BadRequestException e) {
         return ResponseEntity.status(400).body(Map.of("error", e.getMessage()));
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<?> dataIntegrity(DataIntegrityViolationException e) {
+        String message = e.getMessage() != null && e.getMessage().contains("application_answers")
+                ? "Нельзя изменить поля мероприятия: есть поданные заявки"
+                : "Нарушение целостности данных";
+        return ResponseEntity.status(400).body(Map.of("error", message));
     }
 
     @ExceptionHandler(Exception.class)

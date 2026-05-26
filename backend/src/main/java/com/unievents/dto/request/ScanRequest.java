@@ -2,4 +2,4 @@ package com.unievents.dto.request;
 
 import java.util.UUID;
 
-public record ScanRequest(UUID userId, UUID eventId) {}
+public record ScanRequest(String qrToken, UUID eventId) {}

@@ -214,16 +214,30 @@ class EventsService {
   }
 
   Future<ScanResponse> scan({
-    required String userId,
+    required String qrToken,
     required String eventId,
   }) async {
     if (AppConfig.useMockData) {
-      if (userId == MockData.studentUser.id) {
-        return MockData.scanAllowed(userId);
+      final studentId = MockData.studentUser.id;
+      final window = DateTime.now().millisecondsSinceEpoch ~/ 120000;
+      final currentToken = 'mock-qr-$studentId-$window';
+      if (qrToken == currentToken) {
+        return MockData.scanAllowed(studentId);
       }
-      return MockData.scanDenied(userId);
+      if (qrToken.startsWith('mock-qr-')) {
+        return ScanResponse(
+          allowed: false,
+          userName: '',
+          eventTitle: '',
+          message: 'QR-код устарел. Попросите студента обновить код в приложении',
+        );
+      }
+      return MockData.scanDenied(qrToken);
     }
-    final response = await _dio.post(ApiEndpoints.scan, data: {'userId': userId, 'eventId': eventId});
+    final response = await _dio.post(
+      ApiEndpoints.scan,
+      data: {'qrToken': qrToken, 'eventId': eventId},
+    );
     return ScanResponse.fromJson(response.data as Map<String, dynamic>);
   }
 }

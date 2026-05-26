@@ -8,6 +8,7 @@ import '../../widgets/common/empty_state.dart';
 import '../../widgets/common/error_state.dart';
 import '../../widgets/common/loading_view.dart';
 import '../../widgets/event_card.dart';
+import '../../games/widgets/games_entry_card.dart';
 
 class EventsListScreen extends StatelessWidget {
   const EventsListScreen({super.key});
@@ -25,9 +26,16 @@ class EventsListScreen extends StatelessWidget {
       );
     }
     if (provider.events.isEmpty) {
-      return const EmptyState(
-        icon: Icons.event_busy_outlined,
-        message: 'Пока нет доступных мероприятий',
+      return ListView(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        children: const [
+          GamesEntryCard(),
+          SizedBox(height: AppSpacing.lg),
+          EmptyState(
+            icon: Icons.event_busy_outlined,
+            message: 'Пока нет доступных мероприятий',
+          ),
+        ],
       );
     }
 
@@ -35,10 +43,13 @@ class EventsListScreen extends StatelessWidget {
       onRefresh: () => context.read<EventsProvider>().loadEvents(),
       child: ListView.separated(
         padding: const EdgeInsets.all(AppSpacing.lg),
-        itemCount: provider.events.length,
+        itemCount: provider.events.length + 1,
         separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.md),
         itemBuilder: (context, index) {
-          final event = provider.events[index];
+          if (index == 0) {
+            return const GamesEntryCard();
+          }
+          final event = provider.events[index - 1];
           return EventCard(
             event: event,
             onDetails: () => context.push('/student/events/${event.id}'),

@@ -4,6 +4,11 @@ import 'package:provider/provider.dart';
 
 import 'core/providers/auth_provider.dart';
 import 'core/theme/app_theme.dart';
+import 'games/games_hub_screen.dart';
+import 'games/memory/memory_game_screen.dart';
+import 'games/pattern/pattern_game_screen.dart';
+import 'games/simon/simon_game_screen.dart';
+import 'games/tap/tap_game_screen.dart';
 import 'screens/admin/admin_shell.dart';
 import 'screens/admin/admin_wide_required_screen.dart';
 import 'screens/auth/login_screen.dart';
@@ -79,6 +84,26 @@ class UniEventsApp extends StatelessWidget {
         GoRoute(
           path: '/student/qr',
           builder: (context, state) => const QrScreen(),
+        ),
+        GoRoute(
+          path: '/student/games',
+          builder: (context, state) => const GamesHubScreen(),
+        ),
+        GoRoute(
+          path: '/student/games/tap',
+          builder: (context, state) => const TapGameScreen(),
+        ),
+        GoRoute(
+          path: '/student/games/memory',
+          builder: (context, state) => const MemoryGameScreen(),
+        ),
+        GoRoute(
+          path: '/student/games/simon',
+          builder: (context, state) => const SimonGameScreen(),
+        ),
+        GoRoute(
+          path: '/student/games/pattern',
+          builder: (context, state) => const PatternGameScreen(),
         ),
         GoRoute(
           path: '/admin/events',

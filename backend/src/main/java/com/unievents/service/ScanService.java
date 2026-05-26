@@ -6,6 +6,7 @@ import com.unievents.exception.NotFoundException;
 import com.unievents.model.*;
 import com.unievents.model.enums.RegistrationStatus;
 import com.unievents.repository.*;
+import com.unievents.security.QrTokenUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,19 +17,31 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class ScanService {
 
+    private final QrTokenUtil qrTokenUtil;
     private final UserRepository userRepository;
     private final EventRepository eventRepository;
     private final RegistrationRepository registrationRepository;
 
     @Transactional
     public ScanResponse scan(ScanRequest req) {
-        User student = userRepository.findById(req.userId())
-                .orElseThrow(() -> new NotFoundException("Пользователь не найден"));
         Event event = eventRepository.findById(req.eventId())
                 .orElseThrow(() -> new NotFoundException("Мероприятие не найдено"));
+        String eventTitle = event.getTitle();
+
+        QrTokenUtil.ValidationResult qr = qrTokenUtil.validate(req.qrToken());
+        if (qr.status() == QrTokenUtil.Status.EXPIRED) {
+            return new ScanResponse(false, "", eventTitle,
+                    "QR-код устарел. Попросите студента обновить код в приложении");
+        }
+        if (qr.status() == QrTokenUtil.Status.INVALID) {
+            return new ScanResponse(false, "", eventTitle,
+                    "QR-код недействителен");
+        }
+
+        User student = userRepository.findById(qr.userId())
+                .orElseThrow(() -> new NotFoundException("Пользователь не найден"));
 
         String userName = student.getName();
-        String eventTitle = event.getTitle();
 
         Optional<Registration> regOpt =
                 registrationRepository.findByUserAndEvent(student, event);
