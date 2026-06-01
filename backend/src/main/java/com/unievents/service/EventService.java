@@ -7,10 +7,12 @@ import com.unievents.exception.NotFoundException;
 import com.unievents.model.*;
 import com.unievents.model.enums.RegistrationStatus;
 import com.unievents.repository.*;
+import com.unievents.util.EventTimeUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -40,6 +42,7 @@ public class EventService {
                 .title(req.title())
                 .description(req.description())
                 .eventDate(req.eventDate())
+                .durationMinutes(req.durationMinutes() != null ? req.durationMinutes() : 60)
                 .location(req.location())
                 .maxParticipants(req.maxParticipants())
                 .type(req.type())
@@ -66,6 +69,7 @@ public class EventService {
         event.setTitle(req.title());
         event.setDescription(req.description());
         event.setEventDate(req.eventDate());
+        event.setDurationMinutes(req.durationMinutes() != null ? req.durationMinutes() : 60);
         event.setLocation(req.location());
         event.setMaxParticipants(req.maxParticipants());
         event.setType(req.type());
@@ -145,8 +149,11 @@ public class EventService {
                 .countByEventAndStatus(e, RegistrationStatus.REGISTERED);
         int waitlist = (int) registrationRepository
                 .countByEventAndStatus(e, RegistrationStatus.WAITLISTED);
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime end = EventTimeUtil.endAt(e);
         return new EventResponse(e.getId(), e.getTitle(), e.getDescription(),
-                e.getEventDate(), e.getLocation(), e.getMaxParticipants(),
+                e.getEventDate(), e.getDurationMinutes(), end, EventTimeUtil.phase(e, now),
+                e.getLocation(), e.getMaxParticipants(),
                 current, waitlist, e.getType(), List.of());
     }
 
@@ -155,11 +162,14 @@ public class EventService {
                 .countByEventAndStatus(e, RegistrationStatus.REGISTERED);
         int waitlist = (int) registrationRepository
                 .countByEventAndStatus(e, RegistrationStatus.WAITLISTED);
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime end = EventTimeUtil.endAt(e);
         List<EventResponse.FieldDto> fields = fieldRepository.findByEvent(e).stream()
                 .map(f -> new EventResponse.FieldDto(f.getId(), f.getFieldName(), f.getRequired()))
                 .collect(Collectors.toList());
         return new EventResponse(e.getId(), e.getTitle(), e.getDescription(),
-                e.getEventDate(), e.getLocation(), e.getMaxParticipants(),
+                e.getEventDate(), e.getDurationMinutes(), end, EventTimeUtil.phase(e, now),
+                e.getLocation(), e.getMaxParticipants(),
                 current, waitlist, e.getType(), fields);
     }
 }

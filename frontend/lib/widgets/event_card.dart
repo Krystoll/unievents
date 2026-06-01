@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 
+import '../core/event_time.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_spacing.dart';
 import '../models/event.dart';
@@ -10,22 +10,26 @@ class EventCard extends StatelessWidget {
     super.key,
     required this.event,
     required this.onDetails,
+    this.isParticipating = false,
   });
 
   final Event event;
   final VoidCallback onDetails;
+  final bool isParticipating;
 
   @override
   Widget build(BuildContext context) {
-    final dateText = DateFormat('dd.MM.yyyy, HH:mm').format(event.eventDate);
+    final scheduleText = formatEventScheduleShort(event.eventDate, event.endDate);
     final fillRatio = event.maxParticipants > 0
         ? event.currentParticipants / event.maxParticipants
         : 0.0;
     final isFull = event.currentParticipants >= event.maxParticipants;
     final typeLabel = event.type == 'APPROVAL' ? 'По заявке' : 'Свободная запись';
+    final isPast = event.isPast;
 
     return Card(
       clipBehavior: Clip.antiAlias,
+      color: isPast ? Theme.of(context).colorScheme.surfaceContainerHighest : null,
       child: InkWell(
         onTap: onDetails,
         child: Padding(
@@ -40,24 +44,43 @@ class EventCard extends StatelessWidget {
                     width: 44,
                     height: 44,
                     decoration: BoxDecoration(
-                      gradient: AppColors.cardAccent,
+                      gradient: isPast
+                          ? LinearGradient(colors: [Colors.grey.shade500, Colors.grey.shade400])
+                          : AppColors.cardAccent,
                       borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
                     ),
-                    child: const Icon(Icons.event_rounded, color: Colors.white, size: 22),
+                    child: Icon(
+                      isPast ? Icons.event_busy_outlined : Icons.event_rounded,
+                      color: Colors.white,
+                      size: 22,
+                    ),
                   ),
                   const SizedBox(width: AppSpacing.md),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(event.title, style: Theme.of(context).textTheme.titleLarge),
-                        const SizedBox(height: 4),
                         Text(
-                          typeLabel,
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: AppColors.primary,
-                                fontWeight: FontWeight.w500,
+                          event.title,
+                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                color: isPast ? AppColors.textSecondary : null,
                               ),
+                        ),
+                        const SizedBox(height: 4),
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 4,
+                          children: [
+                            Text(
+                              typeLabel,
+                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    color: AppColors.primary,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                            ),
+                            _Chip(label: event.phaseLabel, muted: isPast),
+                            if (isParticipating) const _Chip(label: 'Участвую', highlight: true),
+                          ],
                         ),
                       ],
                     ),
@@ -65,32 +88,34 @@ class EventCard extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: AppSpacing.md),
-              _MetaLine(icon: Icons.calendar_today_outlined, text: dateText),
+              _MetaLine(icon: Icons.calendar_today_outlined, text: scheduleText),
               const SizedBox(height: 6),
               _MetaLine(icon: Icons.place_outlined, text: event.location),
-              const SizedBox(height: AppSpacing.md),
-              Row(
-                children: [
-                  Expanded(
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(4),
-                      child: LinearProgressIndicator(
-                        value: fillRatio.clamp(0.0, 1.0),
-                        minHeight: 6,
-                        backgroundColor: AppColors.outline,
-                        color: isFull ? AppColors.warning : AppColors.secondary,
+              if (!isPast) ...[
+                const SizedBox(height: AppSpacing.md),
+                Row(
+                  children: [
+                    Expanded(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(4),
+                        child: LinearProgressIndicator(
+                          value: fillRatio.clamp(0.0, 1.0),
+                          minHeight: 6,
+                          backgroundColor: AppColors.outline,
+                          color: isFull ? AppColors.warning : AppColors.secondary,
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: AppSpacing.md),
-                  Text(
-                    '${event.currentParticipants}/${event.maxParticipants}',
-                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                          color: isFull ? AppColors.warning : AppColors.textSecondary,
-                        ),
-                  ),
-                ],
-              ),
+                    const SizedBox(width: AppSpacing.md),
+                    Text(
+                      '${event.currentParticipants}/${event.maxParticipants}',
+                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                            color: isFull ? AppColors.warning : AppColors.textSecondary,
+                          ),
+                    ),
+                  ],
+                ),
+              ],
               const SizedBox(height: AppSpacing.md),
               Align(
                 alignment: Alignment.centerRight,
@@ -103,6 +128,37 @@ class EventCard extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _Chip extends StatelessWidget {
+  const _Chip({required this.label, this.muted = false, this.highlight = false});
+
+  final String label;
+  final bool muted;
+  final bool highlight;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: highlight
+            ? AppColors.success.withValues(alpha: 0.12)
+            : AppColors.outline.withValues(alpha: 0.4),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        label,
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: muted
+                  ? AppColors.textSecondary
+                  : highlight
+                      ? AppColors.success
+                      : AppColors.textSecondary,
+            ),
       ),
     );
   }

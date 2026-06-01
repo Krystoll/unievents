@@ -1,5 +1,7 @@
 package com.unievents.model;
 
+import org.hibernate.annotations.ColumnDefault;
+
 import com.unievents.model.enums.EventType;
 import jakarta.persistence.*;
 import lombok.*;
@@ -24,6 +26,12 @@ public class Event {
     @Column(nullable = false)
     private LocalDateTime eventDate;
 
+    /** Длительность мероприятия в минутах (в БД nullable для совместимости со старыми записями). */
+    @Builder.Default
+    @ColumnDefault("60")
+    @Column(columnDefinition = "integer default 60")
+    private Integer durationMinutes = 60;
+
     private String location;
 
     @Column(nullable = false)
@@ -45,5 +53,15 @@ public class Event {
     @PrePersist
     public void prePersist() {
         createdAt = LocalDateTime.now();
+        if (durationMinutes == null) {
+            durationMinutes = 60;
+        }
+    }
+
+    @PreUpdate
+    public void preUpdate() {
+        if (durationMinutes == null) {
+            durationMinutes = 60;
+        }
     }
 }

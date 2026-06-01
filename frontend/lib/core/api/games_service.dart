@@ -38,4 +38,16 @@ class GamesService {
     final list = response.data as List<dynamic>;
     return list.map((e) => LeaderboardEntry.fromJson(e as Map<String, dynamic>)).toList();
   }
+
+  Future<List<LeaderboardEntry>> getEventLeaderboard({
+    required String eventId,
+    required GameType gameType,
+  }) async {
+    if (AppConfig.useMockData) return [];
+    final response = await _dio.get(
+      ApiEndpoints.eventGameLeaderboard(eventId, gameType.apiValue),
+    );
+    final list = response.data as List<dynamic>;
+    return list.map((e) => LeaderboardEntry.fromJson(e as Map<String, dynamic>)).toList();
+  }
 }

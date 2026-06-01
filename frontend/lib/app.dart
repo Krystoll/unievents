@@ -19,6 +19,8 @@ import 'screens/auth/register_screen.dart';
 import 'screens/checker/checker_scan_screen.dart';
 import 'screens/checker/checker_select_event_screen.dart';
 import 'screens/student/event_detail_screen.dart';
+import 'screens/student/event_games_hub_screen.dart';
+import 'screens/student/event_leaderboard_section.dart';
 import 'screens/student/qr_screen.dart';
 import 'screens/student/student_shell.dart';
 
@@ -83,10 +85,60 @@ class UniEventsApp extends StatelessWidget {
             final id = state.pathParameters['id']!;
             return EventDetailScreen(eventId: id);
           },
+          routes: [
+            GoRoute(
+              path: 'games',
+              builder: (context, state) {
+                final eventId = state.pathParameters['id']!;
+                return EventGamesHubScreen(eventId: eventId);
+              },
+              routes: [
+                GoRoute(
+                  path: 'memory',
+                  builder: (context, state) => MemoryGameScreen(
+                    eventId: state.pathParameters['id'],
+                  ),
+                ),
+                GoRoute(
+                  path: 'simon',
+                  builder: (context, state) => SimonGameScreen(
+                    eventId: state.pathParameters['id'],
+                  ),
+                ),
+                GoRoute(
+                  path: 'tap',
+                  builder: (context, state) => TapGameScreen(
+                    eventId: state.pathParameters['id'],
+                  ),
+                ),
+                GoRoute(
+                  path: 'pattern',
+                  builder: (context, state) => PatternGameScreen(
+                    eventId: state.pathParameters['id'],
+                  ),
+                ),
+              ],
+            ),
+            GoRoute(
+              path: 'leaderboard/:gameType',
+              builder: (context, state) {
+                final eventId = state.pathParameters['id']!;
+                final typeName = state.pathParameters['gameType']!;
+                final gameType = GameType.values.firstWhere(
+                  (t) => t.name == typeName,
+                  orElse: () => GameType.memory,
+                );
+                return EventLeaderboardScreen(eventId: eventId, gameType: gameType);
+              },
+            ),
+          ],
         ),
         GoRoute(
           path: '/student/qr',
-          builder: (context, state) => const QrScreen(),
+          builder: (context, state) => QrScreen(
+            eventId: state.uri.queryParameters['eventId'],
+            eventTitle: state.uri.queryParameters['title'],
+          ),
         ),
         GoRoute(
           path: '/student/games',

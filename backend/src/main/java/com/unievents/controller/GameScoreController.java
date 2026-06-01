@@ -13,6 +13,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/games")
@@ -39,5 +40,13 @@ public class GameScoreController {
     @PreAuthorize("hasRole('STUDENT')")
     public List<LeaderboardEntryResponse> leaderboard(@PathVariable GameType gameType) {
         return gameScoreService.getLeaderboard(gameType);
+    }
+
+    @GetMapping("/events/{eventId}/leaderboard/{gameType}")
+    @PreAuthorize("hasRole('STUDENT')")
+    public List<LeaderboardEntryResponse> eventLeaderboard(
+            @PathVariable UUID eventId,
+            @PathVariable GameType gameType) {
+        return gameScoreService.getEventLeaderboard(eventId, gameType);
     }
 }

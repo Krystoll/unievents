@@ -3,10 +3,12 @@ package com.unievents.service;
 import com.unievents.dto.request.ScanRequest;
 import com.unievents.dto.response.ScanResponse;
 import com.unievents.exception.NotFoundException;
+import com.unievents.exception.BadRequestException;
 import com.unievents.model.*;
 import com.unievents.model.enums.RegistrationStatus;
 import com.unievents.repository.*;
 import com.unievents.security.QrTokenUtil;
+import com.unievents.util.EventTimeUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,6 +29,12 @@ public class ScanService {
         Event event = eventRepository.findById(req.eventId())
                 .orElseThrow(() -> new NotFoundException("Мероприятие не найдено"));
         String eventTitle = event.getTitle();
+
+        try {
+            EventTimeUtil.ensureScanWindow(event);
+        } catch (BadRequestException e) {
+            return new ScanResponse(false, "", eventTitle, e.getMessage());
+        }
 
         QrTokenUtil.ValidationResult qr = qrTokenUtil.validate(req.qrToken());
         if (qr.status() == QrTokenUtil.Status.EXPIRED) {

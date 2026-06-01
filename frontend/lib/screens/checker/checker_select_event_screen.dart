@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/event_time.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../models/event.dart';
@@ -28,12 +28,8 @@ class _CheckerSelectEventScreenState extends State<CheckerSelectEventScreen> {
     });
   }
 
-  List<Event> _todayAndUpcoming(List<Event> events) {
-    final now = DateTime.now();
-    final startOfToday = DateTime(now.year, now.month, now.day);
-    return events
-        .where((event) => !event.eventDate.isBefore(startOfToday))
-        .toList()
+  List<Event> _scannableEvents(List<Event> events) {
+    return events.where((event) => event.isOngoing).toList()
       ..sort((a, b) => a.eventDate.compareTo(b.eventDate));
   }
 
@@ -52,7 +48,7 @@ class _CheckerSelectEventScreenState extends State<CheckerSelectEventScreen> {
         ),
       );
     }
-    final events = _todayAndUpcoming(provider.events);
+    final events = _scannableEvents(provider.events);
     return Scaffold(
       appBar: AppBar(
         title: const Text('Выбор мероприятия'),
@@ -75,7 +71,7 @@ class _CheckerSelectEventScreenState extends State<CheckerSelectEventScreen> {
       body: events.isEmpty
           ? const EmptyState(
               icon: Icons.event_busy_outlined,
-              message: 'Нет мероприятий на сегодня и ближайшие дни',
+              message: 'Нет мероприятий, идущих прямо сейчас',
             )
           : ListView.separated(
               padding: const EdgeInsets.all(AppSpacing.lg),
@@ -83,7 +79,7 @@ class _CheckerSelectEventScreenState extends State<CheckerSelectEventScreen> {
               separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.md),
               itemBuilder: (context, index) {
                 final event = events[index];
-                final dateText = DateFormat('dd.MM.yyyy, HH:mm').format(event.eventDate);
+                final scheduleText = formatEventScheduleShort(event.eventDate, event.endDate);
                 return Card(
                   child: InkWell(
                     onTap: () => context.go('/checker/scan/${event.id}', extra: event.title),
@@ -107,7 +103,7 @@ class _CheckerSelectEventScreenState extends State<CheckerSelectEventScreen> {
                               children: [
                                 Text(event.title, style: Theme.of(context).textTheme.titleMedium),
                                 const SizedBox(height: 4),
-                                Text(dateText, style: Theme.of(context).textTheme.bodyMedium),
+                                Text(scheduleText, style: Theme.of(context).textTheme.bodyMedium),
                               ],
                             ),
                           ),

@@ -102,6 +102,7 @@ class SubmitGameScorePayload {
     required this.durationMs,
     required this.progress,
     required this.completed,
+    this.eventId,
   });
 
   final GameType gameType;
@@ -109,6 +110,7 @@ class SubmitGameScorePayload {
   final int durationMs;
   final int progress;
   final bool completed;
+  final String? eventId;
 
   Map<String, dynamic> toJson() => {
         'gameType': gameType.apiValue,
@@ -116,5 +118,6 @@ class SubmitGameScorePayload {
         'durationMs': durationMs,
         'progress': progress,
         'completed': completed,
+        if (eventId != null) 'eventId': eventId,
       };
 }

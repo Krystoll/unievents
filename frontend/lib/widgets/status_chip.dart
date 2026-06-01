@@ -46,6 +46,8 @@ class StatusChip extends StatelessWidget {
         return ('Посетил', AppColors.success);
       case 'NO_SHOW':
         return ('Не явился', AppColors.textSecondary);
+      case 'CANCELLED':
+        return ('Отменено', AppColors.textSecondary);
       default:
         return (status, AppColors.textSecondary);
     }

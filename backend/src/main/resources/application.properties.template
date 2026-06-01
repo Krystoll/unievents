@@ -14,6 +14,10 @@ spring.jpa.show-sql=false
 spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.PostgreSQLDialect
 spring.jpa.properties.hibernate.format_sql=true
 
+# Миграция duration_minutes для существующих мероприятий (до Hibernate)
+spring.sql.init.mode=always
+spring.sql.init.schema-locations=classpath:db/fix-duration-minutes.sql
+
 # JWT
 jwt.secret=${JWT_SECRET}
 jwt.expiration=86400000

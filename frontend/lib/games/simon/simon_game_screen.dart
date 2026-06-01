@@ -35,7 +35,9 @@ const _simonPadColors = [
 ];
 
 class SimonGameScreen extends StatefulWidget {
-  const SimonGameScreen({super.key});
+  const SimonGameScreen({super.key, this.eventId});
+
+  final String? eventId;
 
   @override
   State<SimonGameScreen> createState() => _SimonGameScreenState();
@@ -174,6 +176,7 @@ class _SimonGameScreenState extends State<SimonGameScreen> with SingleTickerProv
         durationMs: _elapsedMs,
         progress: roundsCompleted,
         completed: allRoundsCompleted,
+        eventId: widget.eventId,
       ),
     );
     if (mounted) {

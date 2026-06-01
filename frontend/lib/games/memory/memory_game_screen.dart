@@ -15,7 +15,9 @@ const _levelCompleteDelay = Duration(seconds: 2);
 const _maxLives = 3;
 
 class MemoryGameScreen extends StatefulWidget {
-  const MemoryGameScreen({super.key});
+  const MemoryGameScreen({super.key, this.eventId});
+
+  final String? eventId;
 
   @override
   State<MemoryGameScreen> createState() => _MemoryGameScreenState();
@@ -183,6 +185,7 @@ class _MemoryGameScreenState extends State<MemoryGameScreen> with SingleTickerPr
         durationMs: _elapsedMs,
         progress: levelsDone,
         completed: allLevelsCompleted,
+        eventId: widget.eventId,
       ),
     );
     if (mounted) {
