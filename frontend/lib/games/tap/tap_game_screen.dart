@@ -13,7 +13,9 @@ import 'tap_game_logic.dart';
 import 'tap_shape_painter.dart';
 
 class TapGameScreen extends StatefulWidget {
-  const TapGameScreen({super.key});
+  const TapGameScreen({super.key, this.eventId});
+
+  final String? eventId;
 
   @override
   State<TapGameScreen> createState() => _TapGameScreenState();
@@ -130,6 +132,7 @@ class _TapGameScreenState extends State<TapGameScreen> {
         durationMs: durationMs,
         progress: _score,
         completed: true,
+        eventId: widget.eventId,
       ),
     );
     if (mounted) {

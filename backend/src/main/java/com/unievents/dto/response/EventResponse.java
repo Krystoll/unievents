@@ -1,6 +1,7 @@
 package com.unievents.dto.response;
 
 import com.unievents.model.enums.EventType;
+import com.unievents.model.enums.EventPhase;
 import java.time.LocalDateTime;
 import java.util.*;
 
@@ -9,6 +10,9 @@ public record EventResponse(
         String title,
         String description,
         LocalDateTime eventDate,
+        Integer durationMinutes,
+        LocalDateTime eventEndDate,
+        EventPhase phase,
         String location,
         Integer maxParticipants,
         Integer currentParticipants,

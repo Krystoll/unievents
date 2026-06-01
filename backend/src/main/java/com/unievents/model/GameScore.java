@@ -24,6 +24,10 @@ public class GameScore {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "event_id")
+    private Event event;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private GameType gameType;

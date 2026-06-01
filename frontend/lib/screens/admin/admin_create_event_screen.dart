@@ -30,6 +30,7 @@ class _AdminCreateEventScreenState extends State<AdminCreateEventScreen> {
   final _descriptionController = TextEditingController();
   final _locationController = TextEditingController();
   final _maxParticipantsController = TextEditingController();
+  final _durationController = TextEditingController(text: '120');
   DateTime? _eventDate;
   String _type = 'FREE';
   final List<_FieldDraft> _fields = [];
@@ -46,6 +47,7 @@ class _AdminCreateEventScreenState extends State<AdminCreateEventScreen> {
       _descriptionController.text = event.description;
       _locationController.text = event.location;
       _maxParticipantsController.text = event.maxParticipants.toString();
+      _durationController.text = event.durationMinutes.toString();
       _eventDate = event.eventDate;
       _type = event.type;
       for (final field in event.fields) {
@@ -60,6 +62,7 @@ class _AdminCreateEventScreenState extends State<AdminCreateEventScreen> {
     _descriptionController.dispose();
     _locationController.dispose();
     _maxParticipantsController.dispose();
+    _durationController.dispose();
     for (final field in _fields) {
       field.controller.dispose();
     }
@@ -97,6 +100,7 @@ class _AdminCreateEventScreenState extends State<AdminCreateEventScreen> {
     setState(() => _isSaving = true);
     final provider = context.read<EventsProvider>();
     final maxParticipants = int.parse(_maxParticipantsController.text.trim());
+    final durationMinutes = int.parse(_durationController.text.trim());
     final payloadFields = _type == 'APPROVAL'
         ? _fields
             .where((f) => f.controller.text.trim().isNotEmpty)
@@ -114,6 +118,7 @@ class _AdminCreateEventScreenState extends State<AdminCreateEventScreen> {
         title: _titleController.text.trim(),
         description: _descriptionController.text.trim(),
         eventDate: _eventDate!,
+        durationMinutes: durationMinutes,
         location: _locationController.text.trim(),
         maxParticipants: maxParticipants,
         type: _type,
@@ -124,6 +129,7 @@ class _AdminCreateEventScreenState extends State<AdminCreateEventScreen> {
         title: _titleController.text.trim(),
         description: _descriptionController.text.trim(),
         eventDate: _eventDate!,
+        durationMinutes: durationMinutes,
         location: _locationController.text.trim(),
         maxParticipants: maxParticipants,
         type: _type,
@@ -245,6 +251,20 @@ class _AdminCreateEventScreenState extends State<AdminCreateEventScreen> {
                         validator: (value) {
                           final n = int.tryParse(value?.trim() ?? '');
                           if (n == null || n <= 0) return 'Введите положительное число';
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                      TextFormField(
+                        controller: _durationController,
+                        decoration: const InputDecoration(
+                          labelText: 'Длительность (минуты)',
+                          prefixIcon: Icon(Icons.timer_outlined),
+                        ),
+                        keyboardType: TextInputType.number,
+                        validator: (value) {
+                          final n = int.tryParse(value?.trim() ?? '');
+                          if (n == null || n <= 0) return 'Введите длительность в минутах';
                           return null;
                         },
                       ),

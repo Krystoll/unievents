@@ -6,6 +6,9 @@ class Event {
   final String title;
   final String description;
   final DateTime eventDate;
+  final int durationMinutes;
+  final DateTime? eventEndDate;
+  final String? phaseRaw;
   final String location;
   final int maxParticipants;
   final int currentParticipants;
@@ -18,6 +21,9 @@ class Event {
     required this.title,
     required this.description,
     required this.eventDate,
+    required this.durationMinutes,
+    this.eventEndDate,
+    this.phaseRaw,
     required this.location,
     required this.maxParticipants,
     required this.currentParticipants,
@@ -32,6 +38,11 @@ class Event {
       title: json['title'] as String,
       description: (json['description'] as String?) ?? '',
       eventDate: parseApiDateTime(json['eventDate']),
+      durationMinutes: (json['durationMinutes'] as num?)?.toInt() ?? 60,
+      eventEndDate: json['eventEndDate'] != null
+          ? parseApiDateTime(json['eventEndDate'])
+          : null,
+      phaseRaw: json['phase']?.toString(),
       location: (json['location'] as String?) ?? '',
       maxParticipants: (json['maxParticipants'] as num?)?.toInt() ?? 0,
       currentParticipants: (json['currentParticipants'] as num?)?.toInt() ?? 0,
@@ -48,6 +59,7 @@ class Event {
       'title': title,
       'description': description,
       'eventDate': eventDate.toIso8601String(),
+      'durationMinutes': durationMinutes,
       'location': location,
       'maxParticipants': maxParticipants,
       'type': type,

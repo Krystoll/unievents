@@ -6,15 +6,24 @@ import com.unievents.exception.*;
 import com.unievents.model.*;
 import com.unievents.model.enums.*;
 import com.unievents.repository.*;
+import com.unievents.util.EventTimeUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
 public class RegistrationService {
+
+    private static final Set<RegistrationStatus> CANCELLABLE = Set.of(
+            RegistrationStatus.PENDING,
+            RegistrationStatus.REGISTERED,
+            RegistrationStatus.WAITLISTED
+    );
 
     private final RegistrationRepository registrationRepository;
     private final ApplicationAnswerRepository answerRepository;
@@ -23,18 +32,29 @@ public class RegistrationService {
     @Transactional
     public RegistrationResponse register(User user, Event event,
                                          RegisterEventRequest req) {
-        // Проверка дублей
-        registrationRepository.findByUserAndEvent(user, event).ifPresent(r -> {
-            if (r.getStatus() != RegistrationStatus.CANCELLED &&
-                    r.getStatus() != RegistrationStatus.REJECTED) {
+        EventTimeUtil.ensureRegistrationOpen(event);
+
+        var existingOpt = registrationRepository.findByUserAndEvent(user, event);
+        Registration reg;
+
+        if (existingOpt.isPresent()) {
+            Registration existing = existingOpt.get();
+            if (existing.getStatus() != RegistrationStatus.CANCELLED
+                    && existing.getStatus() != RegistrationStatus.REJECTED) {
                 throw new BadRequestException("Вы уже подали заявку на это мероприятие");
             }
-        });
-
-        Registration reg = Registration.builder()
-                .user(user)
-                .event(event)
-                .build();
+            reg = existing;
+            reg.setQueuePosition(null);
+            reg.setAttendedAt(null);
+      reg.setRegisteredAt(LocalDateTime.now());
+      var oldAnswers = answerRepository.findByRegistration(reg);
+      answerRepository.deleteAll(oldAnswers);
+        } else {
+            reg = Registration.builder()
+                    .user(user)
+                    .event(event)
+                    .build();
+        }
 
         if (event.getType() == EventType.FREE) {
             long registered = registrationRepository
@@ -58,7 +78,6 @@ public class RegistrationService {
             reg.setStatus(RegistrationStatus.PENDING);
             registrationRepository.save(reg);
 
-            // Сохранить ответы на кастомные поля
             if (req != null && req.answers() != null) {
                 for (var ans : req.answers()) {
                     EventField field = fieldRepository.findById(ans.fieldId())
@@ -80,11 +99,15 @@ public class RegistrationService {
         Registration reg = registrationRepository.findByUserAndEvent(user, event)
                 .orElseThrow(() -> new NotFoundException("Регистрация не найдена"));
 
+        if (!CANCELLABLE.contains(reg.getStatus())) {
+            throw new BadRequestException("Нельзя отменить участие в текущем статусе");
+        }
+
         boolean wasRegistered = reg.getStatus() == RegistrationStatus.REGISTERED;
         reg.setStatus(RegistrationStatus.CANCELLED);
+        reg.setQueuePosition(null);
         registrationRepository.save(reg);
 
-        // Передать место следующему из очереди
         if (wasRegistered) {
             promoteFromWaitlist(event);
         }
@@ -111,7 +134,6 @@ public class RegistrationService {
         registrationRepository.save(reg);
     }
 
-    // ── Поднять первого из очереди ────────────────────
     private void promoteFromWaitlist(Event event) {
         registrationRepository
                 .findFirstByEventAndStatusOrderByQueuePositionAsc(event, RegistrationStatus.WAITLISTED)
@@ -119,7 +141,6 @@ public class RegistrationService {
                     first.setStatus(RegistrationStatus.REGISTERED);
                     first.setQueuePosition(null);
                     registrationRepository.save(first);
-                    // Пересчитать позиции оставшихся
                     recalculateQueue(event);
                 });
     }

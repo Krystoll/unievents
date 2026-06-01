@@ -25,4 +25,6 @@ class ApiEndpoints {
   static const String submitGameScore = '/api/games/scores';
   static const String myGameStats = '/api/games/stats/me';
   static String gameLeaderboard(String gameType) => '/api/games/leaderboard/$gameType';
+  static String eventGameLeaderboard(String eventId, String gameType) =>
+      '/api/games/events/$eventId/leaderboard/$gameType';
 }

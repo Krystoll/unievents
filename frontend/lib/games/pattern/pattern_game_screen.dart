@@ -12,7 +12,9 @@ import '../widgets/games_scaffold.dart';
 import 'pattern_game_logic.dart';
 
 class PatternGameScreen extends StatefulWidget {
-  const PatternGameScreen({super.key});
+  const PatternGameScreen({super.key, this.eventId});
+
+  final String? eventId;
 
   @override
   State<PatternGameScreen> createState() => _PatternGameScreenState();
@@ -98,6 +100,7 @@ class _PatternGameScreenState extends State<PatternGameScreen> {
         durationMs: durationMs,
         progress: _placements,
         completed: _linesCleared >= 5,
+        eventId: widget.eventId,
       ),
     );
     if (mounted) {

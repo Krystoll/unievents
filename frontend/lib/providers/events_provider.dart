@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import '../core/api/api_json.dart';
+import '../core/event_time.dart';
 import '../core/api/events_service.dart';
 import '../models/attendance.dart';
 import '../models/event.dart';
@@ -96,6 +97,7 @@ class EventsProvider extends ChangeNotifier {
     required String title,
     required String description,
     required DateTime eventDate,
+    required int durationMinutes,
     required String location,
     required int maxParticipants,
     required String type,
@@ -108,6 +110,7 @@ class EventsProvider extends ChangeNotifier {
         title: title,
         description: description,
         eventDate: eventDate,
+        durationMinutes: durationMinutes,
         location: location,
         maxParticipants: maxParticipants,
         type: type,
@@ -127,6 +130,7 @@ class EventsProvider extends ChangeNotifier {
     required String title,
     required String description,
     required DateTime eventDate,
+    required int durationMinutes,
     required String location,
     required int maxParticipants,
     required String type,
@@ -140,6 +144,7 @@ class EventsProvider extends ChangeNotifier {
         title: title,
         description: description,
         eventDate: eventDate,
+        durationMinutes: durationMinutes,
         location: location,
         maxParticipants: maxParticipants,
         type: type,
@@ -246,13 +251,17 @@ class EventsProvider extends ChangeNotifier {
   }
 
   Registration? registrationByEventId(String eventId) {
+    Registration? best;
     for (final registration in _myRegistrations) {
-      if (registration.event.id == eventId) {
-        return registration;
-      }
+      if (registration.event.id != eventId) continue;
+      if (!isActiveRegistrationStatus(registration.status)) continue;
+      best = registration;
+      break;
     }
-    return null;
+    return best;
   }
+
+  bool isParticipatingIn(String eventId) => registrationByEventId(eventId) != null;
 
   void clearError() {
     _error = null;

@@ -8,6 +8,7 @@ public record EventRequest(
         String title,
         String description,
         LocalDateTime eventDate,
+        Integer durationMinutes,
         String location,
         Integer maxParticipants,
         EventType type,

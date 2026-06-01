@@ -10,7 +10,10 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 
 class QrScreen extends StatefulWidget {
-  const QrScreen({super.key});
+  const QrScreen({super.key, this.eventId, this.eventTitle});
+
+  final String? eventId;
+  final String? eventTitle;
 
   @override
   State<QrScreen> createState() => _QrScreenState();
@@ -102,12 +105,17 @@ class _QrScreenState extends State<QrScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(
-                'Покажите этот код на входе',
+                widget.eventTitle != null
+                    ? 'QR-код для «${widget.eventTitle}»'
+                    : 'Покажите этот код на входе',
                 style: Theme.of(context).textTheme.titleMedium,
+                textAlign: TextAlign.center,
               ),
               const SizedBox(height: AppSpacing.sm),
               Text(
-                'Код обновляется каждые 2 минуты',
+                widget.eventId != null
+                    ? 'Сканирование доступно только во время мероприятия'
+                    : 'Код обновляется каждые 2 минуты',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: AppColors.textSecondary,
                     ),

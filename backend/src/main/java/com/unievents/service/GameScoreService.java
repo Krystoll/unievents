@@ -5,10 +5,17 @@ import com.unievents.dto.response.GameScoreResponse;
 import com.unievents.dto.response.GameTypeStatsResponse;
 import com.unievents.dto.response.LeaderboardEntryResponse;
 import com.unievents.exception.BadRequestException;
+import com.unievents.exception.NotFoundException;
+import com.unievents.model.Event;
 import com.unievents.model.GameScore;
+import com.unievents.model.Registration;
 import com.unievents.model.User;
 import com.unievents.model.enums.GameType;
+import com.unievents.model.enums.RegistrationStatus;
+import com.unievents.repository.EventRepository;
 import com.unievents.repository.GameScoreRepository;
+import com.unievents.repository.RegistrationRepository;
+import com.unievents.util.EventTimeUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -24,13 +32,29 @@ public class GameScoreService {
     private static final int LEADERBOARD_LIMIT = 20;
 
     private final GameScoreRepository gameScoreRepository;
+    private final EventRepository eventRepository;
+    private final RegistrationRepository registrationRepository;
 
     @Transactional
     public GameScoreResponse submitScore(User user, SubmitGameScoreRequest req) {
         validate(req);
 
+        Event event = null;
+        if (req.eventId() != null) {
+            event = eventRepository.findById(req.eventId())
+                    .orElseThrow(() -> new NotFoundException("Мероприятие не найдено"));
+            EventTimeUtil.ensureGamesWindow(event);
+
+            Registration reg = registrationRepository.findByUserAndEvent(user, event)
+                    .orElseThrow(() -> new BadRequestException("Вы не записаны на это мероприятие"));
+            if (reg.getStatus() != RegistrationStatus.ATTENDED) {
+                throw new BadRequestException("Сначала пройдите регистрацию на входе (QR-код)");
+            }
+        }
+
         GameScore saved = gameScoreRepository.save(GameScore.builder()
                 .user(user)
+                .event(event)
                 .gameType(req.gameType())
                 .score(req.score())
                 .durationMs(req.durationMs())
@@ -45,16 +69,24 @@ public class GameScoreService {
     public List<GameTypeStatsResponse> getMyStats(User user) {
         List<GameTypeStatsResponse> stats = new ArrayList<>();
         for (GameType type : GameType.values()) {
-            stats.add(buildStats(user, type));
+            stats.add(buildGlobalStats(user, type));
         }
         return stats;
     }
 
     @Transactional(readOnly = true)
     public List<LeaderboardEntryResponse> getLeaderboard(GameType gameType) {
-        List<GameScore> scores = gameScoreRepository.findLeaderboard(gameType);
+        return buildLeaderboard(gameScoreRepository.findGlobalLeaderboard(gameType));
+    }
 
-        // Лучший результат каждого пользователя
+    @Transactional(readOnly = true)
+    public List<LeaderboardEntryResponse> getEventLeaderboard(UUID eventId, GameType gameType) {
+        Event event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new NotFoundException("Мероприятие не найдено"));
+        return buildLeaderboard(gameScoreRepository.findEventLeaderboard(gameType, event));
+    }
+
+    private List<LeaderboardEntryResponse> buildLeaderboard(List<GameScore> scores) {
         var bestByUser = new java.util.LinkedHashMap<java.util.UUID, GameScore>();
         for (GameScore score : scores) {
             var userId = score.getUser().getId();
@@ -89,11 +121,12 @@ public class GameScoreService {
         return result;
     }
 
-    private GameTypeStatsResponse buildStats(User user, GameType type) {
-        long played = gameScoreRepository.countByUserAndGameType(user, type);
-        var best = gameScoreRepository.findTopByUserAndGameTypeOrderByScoreDesc(user, type);
-        double avg = gameScoreRepository.averageScoreByUserAndGameType(user, type);
-        var recent = gameScoreRepository.findByUserAndGameTypeOrderByPlayedAtDesc(user, type);
+    private GameTypeStatsResponse buildGlobalStats(User user, GameType type) {
+        long played = gameScoreRepository.countGlobalByUserAndGameType(user, type);
+        var best = gameScoreRepository
+                .findFirstByUserAndGameTypeAndEventIsNullOrderByScoreDescDurationMsAscPlayedAtAsc(user, type);
+        double avg = gameScoreRepository.averageGlobalScoreByUserAndGameType(user, type);
+        var recent = gameScoreRepository.findGlobalByUserAndGameTypeOrderByPlayedAtDesc(user, type);
 
         int bestScore = best.map(GameScore::getScore).orElse(0);
         int lastScore = recent.isEmpty() ? 0 : recent.get(0).getScore();
